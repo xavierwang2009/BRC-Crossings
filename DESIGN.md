@@ -276,10 +276,16 @@ Posts sit straight on the mist ground with 1.5px line dividers, not on cards. Th
 **The Sunlit Until Seen Rule.** A post that changed for this Member (new Counselor answer, or their own post) is lit: sun-soft fill, 18px radius, a 2px inset sun ring, and a sun-soft "New answer" tag. It stays lit until the Member opens it. Keep it inside the gutter and never add an outer halo.
 
 ### Companion Check-in
-A shadowless mist-2 tray holds a four-column grid of 84px mood tiles. Each tile has a round shaded face in the mood's own colour. The selected tile lifts 2px onto card-white with a 2.5px forest ring. After check-in, the tray shows a summary (face, "Checked in today", mood and tags). On hard days a berry-soft comfort card with a berry heart sits above a full-width forest "Breathe" button.
+A shadowless mist-2 tray holds a four-column grid of 84px mood tiles. Each tile has a round shaded face in the mood's own colour. The selected tile lifts 2px onto card-white with a 2.5px forest ring. After check-in, the tray shows a summary (face, "Checked in today", mood and tags). Comfort and breathing on hard days come from the Companion's dialogue box above the tray, not from a separate card.
 
 ### Riverbank Diorama (signature)
-This is a floating soft-shaded island with a river, the arch bridge, round trees, a lamp and flowers, all matte-vinyl. The sky gradient and sun position follow the real clock (day blue, night indigo). Weather follows the check-in mood. The Companion naps until check-in, wakes with a yawn, follows the pointer with its eyes, and responds to taps, strokes and holds. The greeting sits in the top-left band, and clouds fade out of it. Text flips to on-forest when the sky is dark.
+This is a floating soft-shaded island with a river, the arch bridge, round trees, a lamp and flowers, all matte-vinyl. The sky gradient and sun position follow the real clock (day blue, night indigo). Weather follows the check-in mood. The Companion is awake whenever the Member visits. It naps only after a skipped day and wakes glad to see them, with no guilt. It breathes, blinks, follows the pointer, wanders to sniff a flower or wave, and comes home to face the Member when it talks. Eyebrows appear only for worry, sadness, frustration and surprise. Its gestures are wave, nod, tilt, cheer, dance, comfort, think, sniff and yawn. On Home the greeting is spoken by the Companion in the dialogue box. On the Companion screen the name label sits top-left, in a band that clouds fade out of. Text flips to on-forest when the sky is dark.
+
+### Companion Dialogue (signature)
+This is a cozy-game speech panel that rises 74px into the diorama, with a 20px tail pointing up at the Companion. It has a card ground, the 26px sheet radius and the lift-2 shadow. A sun name-tag pill with a paw icon overlaps its top-left edge. The line types out at about 35 characters a second, after a three-dot pause, while the Companion's mouth moves. Reply chips are 44px mist pills that spring in one after another; a forest chip is the suggested next step, a berry-soft chip is real help. Mood replies carry the mood's own face. On hard days a river-ink shield line says the Companion is a companion, not a counselor. Every line is scripted in three languages. The Companion brings things up on its own only from real data (a new answer, a Circle, the season, the clock), only after 14 seconds of quiet, never on a hard-day or exercise line, and at most four times a visit.
+
+### Quip
+This is a short card-white speech pop with a downward tail, placed at the Companion's head when it is tapped, stroked or hugged, or says hello. It rises and fades over 1.9s.
 
 ## Do's and Don'ts
 
@@ -298,4 +304,5 @@ This is a floating soft-shaded island with a river, the arch bridge, round trees
 - **Don't** add a second easing curve with overshoot or bounce; --spring is the only one.
 - **Don't** show the same fact twice in one view (for example, the mood in the diorama overlay and on the check-in card).
 - **Don't** place the diorama greeting at bottom-left, where it collides with the Check in button and the island rim.
+- **Don't** let the Companion give advice, diagnose, or speak unscripted; on hard days it always offers a real person.
 - **Don't** use a pastel gradient for shell surfaces or draw the Companion as a flat illustration. Gradients belong to the diorama sky.

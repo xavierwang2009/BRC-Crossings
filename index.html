@@ -105,6 +105,38 @@ a { color: var(--river-ink); text-underline-offset: 3px; }
 .hint .ic { width: 18px; height: 18px; color: var(--berry); }
 @keyframes hint { 0% { opacity: 0; transform: translate(-50%, 8px); } 12%, 82% { opacity: 1; transform: translate(-50%, 0); } 100% { opacity: 0; transform: translate(-50%, 0); } }
 
+/* The Companion's dialogue: a cozy-game speech panel that rises out of the diorama */
+.talk { position: relative; z-index: 3; margin: -74px var(--gut) var(--gap); }
+.talk-box { position: relative; padding: 24px 16px 14px; border-radius: 26px; background: var(--card); box-shadow: var(--lift-2); }
+.talk-box::before { content: ""; position: absolute; top: -9px; left: 44%; width: 20px; height: 20px; border-radius: 4px; background: var(--card); transform: rotate(45deg); }
+.talk-name { position: absolute; top: -15px; left: 14px; display: inline-flex; align-items: center; gap: 5px; height: 30px; padding: 0 12px 0 9px; border-radius: 999px;
+  background: var(--sun); color: var(--forest); font: 600 var(--fs-s)/1 var(--display); box-shadow: 0 4px 10px -6px rgba(107, 76, 0, .6); }
+.talk-name .ic { width: 16px; height: 16px; }
+.talk-text { position: relative; margin: 0; min-height: 3em; font: 600 var(--fs-m)/1.5 var(--body); color: var(--ink); text-wrap: pretty; }
+.talk-dots { display: inline-flex; gap: 5px; padding: 8px 0; }
+.talk-dots i { width: 7px; height: 7px; border-radius: 50%; background: var(--ink-3); animation: dot 1s ease-in-out infinite; }
+.talk-dots i:nth-child(2) { animation-delay: .15s; } .talk-dots i:nth-child(3) { animation-delay: .3s; }
+@keyframes dot { 0%, 80%, 100% { opacity: .3; transform: translateY(0); } 40% { opacity: 1; transform: translateY(-3px); } }
+.talk-opts { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.talk-opts.wait { visibility: hidden; }
+.talk-opt { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; padding: 0 14px 0 10px; border: 0; border-radius: 999px; background: var(--mist); color: var(--forest);
+  font: 700 var(--fs-s)/1.2 var(--body); text-align: left; transition: transform var(--t) var(--spring), background .2s; }
+.talk-opts:not(.wait) .talk-opt { animation: enter .42s var(--spring) both; animation-delay: calc(var(--i) * 60ms); }
+.talk-opt:hover { background: var(--mist-2); }
+.talk-opt:active { transform: scale(.96); }
+.talk-opt .ic { width: 18px; height: 18px; }
+.talk-opt svg { flex: none; }
+.talk-opt.primary { background: var(--forest); color: var(--on-forest); }
+.talk-opt.primary:hover { background: var(--forest-2); }
+.talk-opt.help { background: var(--berry-soft); color: var(--berry-ink); }
+.talk-note { display: flex; gap: 6px; align-items: flex-start; margin: 12px 2px 0; font: 600 var(--fs-s)/1.4 var(--body); color: var(--ink-2); }
+.talk-note .ic { width: 16px; height: 16px; margin-top: 2px; color: var(--river-ink); }
+/* A short line spoken right at the Companion when it is touched */
+.quip { position: absolute; z-index: 4; transform: translate(-50%, -100%); padding: 8px 12px; border-radius: 16px; background: var(--card); color: var(--forest);
+  font: 700 var(--fs-s)/1.2 var(--body); white-space: nowrap; box-shadow: var(--lift); pointer-events: none; animation: quip 1.9s var(--spring) both; }
+.quip::after { content: ""; position: absolute; left: 50%; bottom: -5px; width: 10px; height: 10px; margin-left: -5px; border-radius: 2px; background: var(--card); transform: rotate(45deg); }
+@keyframes quip { 0% { opacity: 0; transform: translate(-50%, -80%) scale(.85); } 15% { opacity: 1; transform: translate(-50%, -100%) scale(1); } 80% { opacity: 1; } 100% { opacity: 0; transform: translate(-50%, -114%); } }
+
 /* Sheet that rises over the diorama */
 .scroll { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: var(--mist-2) transparent; scroll-behavior: smooth; }
 .scroll::-webkit-scrollbar { width: 6px; } .scroll::-webkit-scrollbar-thumb { background: #b9d6c5; border-radius: 6px; }
@@ -737,6 +769,100 @@ function isRisky(text) {
   return RISK_EN.some(r => r.test(s)) || RISK_ZH.some(w => s.includes(w));
 }
 
+/* The Companion's voice. Every line is scripted and reviewed: the Companion keeps
+   people company and points to real help; it never gives clinical advice.
+   {name} = Member, {pet} = Companion name, {greet} = time-of-day greeting. */
+const TT = {
+  hello: { en: "{greet}! I'm so glad you came by. How's your heart today?", ht: "{greet}！好高興你來了。今天心情怎麼樣？", hs: "{greet}！好高兴你来了。今天心情怎么样？" },
+  hello_first: { en: "Hi {name}, I'm {pet}! You can tap, stroke or hold me anytime. How's your heart today?", ht: "嗨 {name}，我是 {pet}！隨時都可以點點我、摸摸我或抱抱我。今天心情怎麼樣？", hs: "嗨 {name}，我是 {pet}！随时都可以点点我、摸摸我或抱抱我。今天心情怎么样？" },
+  hello_c: { en: "Pick how you feel below, and add anything that's part of it. I'm listening.", ht: "在下面選選你的心情，也可以加上相關的事。我在聽。", hs: "在下面选选你的心情，也可以加上相关的事。我在听。" },
+  late: { en: "{greet}. You're up late. Can't sleep? I can keep you company.", ht: "{greet}。這麼晚還沒睡呀？睡不著的話，我陪你。", hs: "{greet}。这么晚还没睡呀？睡不着的话，我陪你。" },
+  away: { en: "Zzz… {pet} is napping by the river.", ht: "呼呼… {pet} 在河邊打盹。", hs: "呼呼… {pet} 在河边打盹。" },
+  back: { en: "Oh! {name}, you're here! I kept your spot by the river warm. How's your heart today?", ht: "啊！{name}，你來了！我幫你把河邊的位子留得暖暖的。今天心情怎麼樣？", hs: "啊！{name}，你来了！我帮你把河边的位子留得暖暖的。今天心情怎么样？" },
+  notgreat: { en: "Thank you for telling me. What's it feeling like?", ht: "謝謝你願意告訴我。是什麼樣的感覺呢？", hs: "谢谢你愿意告诉我。是什么样的感觉呢？" },
+  r_great: { en: "Yay! That makes my heart do a little hop! What went well?", ht: "太好了！我的心都開心得跳起來了！今天什麼事讓你開心？", hs: "太好了！我的心都开心得跳起来了！今天什么事让你开心？" },
+  r_good: { en: "I'm glad. A good day is worth noticing.", ht: "真好。美好的一天值得好好記住。", hs: "真好。美好的一天值得好好记住。" },
+  r_okay: { en: "Okay is okay. Want to do one small kind thing for yourself?", ht: "還好也沒關係。要不要為自己做一件小小的好事？", hs: "还好也没关系。要不要为自己做一件小小的好事？" },
+  r_low: { en: "I'm sorry it feels heavy today. You don't have to fix anything right now. I'm right here.", ht: "今天感覺很沉重，真抱歉。你現在不需要解決任何事，我就在這裡。", hs: "今天感觉很沉重，真抱歉。你现在不需要解决任何事，我就在这里。" },
+  r_sad: { en: "I'm sorry you're sad. It's okay to feel this way. I'm right here with you.", ht: "你難過，我很心疼。有這種感覺沒關係，我就在你身邊。", hs: "你难过，我很心疼。有这种感觉没关系，我就在你身边。" },
+  r_anxious: { en: "Let's slow down together. Breathe with me for a minute?", ht: "我們一起慢下來。和我呼吸一分鐘好嗎？", hs: "我们一起慢下来。和我呼吸一分钟好吗？" },
+  r_frustrated: { en: "That sounds really frustrating. It's okay to feel this.", ht: "聽起來真的很煩。有這種感覺是可以的。", hs: "听起来真的很烦。有这种感觉是可以的。" },
+  r_tired: { en: "You've been carrying a lot. Resting counts as doing something.", ht: "你扛了好多事。休息也是在照顧自己。", hs: "你扛了好多事。休息也是在照顾自己。" },
+  g5: { en: "Look around. Can you find 5 things you can see? Take your time.", ht: "看看四周，找出 5 樣你看得到的東西，慢慢來。", hs: "看看四周，找出 5 样你看得到的东西，慢慢来。" },
+  g4: { en: "Now 4 things you can feel, like your feet on the floor.", ht: "接著，4 樣你感覺得到的東西，像是腳踩在地上的感覺。", hs: "接着，4 样你感觉得到的东西，像是脚踩在地上的感觉。" },
+  g3: { en: "3 things you can hear. Even tiny sounds count.", ht: "3 種你聽得到的聲音，再小的聲音都算。", hs: "3 种你听得到的声音，再小的声音都算。" },
+  g2: { en: "2 things you can smell, or 2 smells you love.", ht: "2 種你聞得到的味道，或 2 種你喜歡的味道。", hs: "2 种你闻得到的味道，或 2 种你喜欢的味道。" },
+  g1: { en: "And 1 slow breath, together with me.", ht: "最後，和我一起慢慢吸一口氣。", hs: "最后，和我一起慢慢吸一口气。" },
+  g_end: { en: "You did it. How do you feel now?", ht: "你做到了。現在感覺怎麼樣？", hs: "你做到了。现在感觉怎么样？" },
+  proud: { en: "I'm proud of you. We can do this again anytime.", ht: "我為你感到驕傲。隨時都可以再一起練習。", hs: "我为你感到骄傲。随时都可以再一起练习。" },
+  still_hard: { en: "Thank you for trying. Some days need more than breathing. Want to reach a real person?", ht: "謝謝你願意試試。有些日子需要的不只是呼吸。要不要找真人聊聊？", hs: "谢谢你愿意试试。有些日子需要的不只是呼吸。要不要找真人聊聊？" },
+  sit: { en: "I'll sit right here with you. No need to say anything.", ht: "我就坐在這裡陪你，什麼都不用說。", hs: "我就坐在这里陪你，什么都不用说。" },
+  dance: { en: "Hehe! Happy dance! Want another?", ht: "嘿嘿！開心舞！再跳一次？", hs: "嘿嘿！开心舞！再跳一次？" },
+  play: { en: "Tap me and I'll hop! Or I can show you a trick.", ht: "點點我，我會跳起來！或是看我表演一招。", hs: "点点我，我会跳起来！或是看我表演一招。" },
+  bye: { en: "I'll be right here whenever you need me.", ht: "你需要我的時候，我都在這裡。", hs: "你需要我的时候，我都在这里。" },
+  after_breathe: { en: "That was nice. Thank you for breathing with me.", ht: "好舒服。謝謝你和我一起呼吸。", hs: "好舒服。谢谢你和我一起呼吸。" },
+  posted: { en: "You shared with the community. That takes courage.", ht: "你和社群分享了，這需要勇氣。", hs: "你和社群分享了，这需要勇气。" },
+  after_hold: { en: "I'm really glad you told us how you feel. Want to see who you can talk to right now?", ht: "我很高興你說出了自己的感受。要看看現在可以找誰談談嗎？", hs: "我很高兴你说出了自己的感受。要看看现在可以找谁谈谈吗？" },
+  nudge_answer: { en: "Psst. A Counselor just answered a question about ADHD homework. Want to read it?", ht: "悄悄告訴你，有位輔導師剛回答了關於 ADHD 寫作業的問題。要看看嗎？", hs: "悄悄告诉你，有位咨询师刚回答了关于 ADHD 写作业的问题。要看看吗？" },
+  nudge_guide: { en: "Did you know you can pick a Counselor guide to message? I can show you.", ht: "你知道嗎？你可以選一位輔導師嚮導傳訊息。我帶你去看看。", hs: "你知道吗？你可以选一位咨询师向导发消息。我带你去看看。" },
+  nudge_circle: { en: "There's a Circle of parents of kids with ADHD. Want to peek inside?", ht: "有一個 ADHD 孩子家長的圈子。要進去看看嗎？", hs: "有一个 ADHD 孩子家长的圈子。要进去看看吗？" },
+  amb_spring: { en: "Little flowers are popping up everywhere. Spring feels hopeful.", ht: "到處都冒出小花了，春天好有希望。", hs: "到处都冒出小花了，春天好有希望。" },
+  amb_summer: { en: "It's warm today. I might dip my toes in the river.", ht: "今天好暖和，我想去河裡泡泡腳。", hs: "今天好暖和，我想去河里泡泡脚。" },
+  amb_autumn: { en: "The maple leaves are turning orange. I love the crunchy sound they make.", ht: "楓葉變橘色了。我好喜歡踩在上面沙沙的聲音。", hs: "枫叶变橘色了。我好喜欢踩在上面沙沙的声音。" },
+  amb_winter: { en: "The air feels crisp. Perfect weather for a cozy scarf.", ht: "空氣涼涼的，最適合圍上暖暖的圍巾。", hs: "空气凉凉的，最适合围上暖暖的围巾。" },
+  amb_night: { en: "The fireflies are out. The river looks full of stars tonight.", ht: "螢火蟲出來了，今晚的河好像裝滿了星星。", hs: "萤火虫出来了，今晚的河好像装满了星星。" },
+  amb_morning: { en: "Morning light makes the river sparkle. Did you sleep okay?", ht: "早晨的陽光讓河水閃閃發亮。昨晚睡得好嗎？", hs: "早晨的阳光让河水闪闪发亮。昨晚睡得好吗？" },
+  glad: { en: "I'm glad. Let's have a gentle day.", ht: "太好了。今天我們慢慢來。", hs: "太好了。今天我们慢慢来。" },
+  rough_night: { en: "Rough nights are hard. Let's go slow today. Want to breathe together first?", ht: "睡不好真的很辛苦。今天我們慢慢來。要不要先一起呼吸？", hs: "睡不好真的很辛苦。今天我们慢慢来。要不要先一起呼吸？" },
+  amb_rain: { en: "I like the sound of rain under my big leaf. Want to listen with me?", ht: "我喜歡在大葉子下聽雨聲。要和我一起聽嗎？", hs: "我喜欢在大叶子下听雨声。要和我一起听吗？" },
+  amb_weekend: { en: "It's the weekend. Is there one small thing you're looking forward to?", ht: "週末到了。有沒有一件小事讓你期待？", hs: "周末到了。有没有一件小事让你期待？" },
+  note_companion: { en: "I'm a companion, not a counselor. Real people are one tap away.", ht: "我是陪伴你的小夥伴，不是輔導師。真人協助一點就到。", hs: "我是陪伴你的小伙伴，不是咨询师。真人帮助一点就到。" },
+  // reply chips
+  o_not_great: { en: "Not so great", ht: "不太好", hs: "不太好" },
+  o_thanks: { en: "Thanks, {pet}", ht: "謝謝你，{pet}", hs: "谢谢你，{pet}" },
+  o_breathe: { en: "Breathe with me", ht: "和我一起呼吸", hs: "和我一起呼吸" },
+  o_three: { en: "Take three slow breaths", ht: "慢慢呼吸三次", hs: "慢慢呼吸三次" },
+  o_winddown: { en: "Wind down with me", ht: "和我一起放鬆", hs: "和我一起放松" },
+  o_sit: { en: "Sit with me", ht: "陪我坐一下", hs: "陪我坐一下" },
+  o_hangout: { en: "Just hang out", ht: "就待在一起", hs: "就待在一起" },
+  o_ground: { en: "Try 5-4-3-2-1 grounding", ht: "試試 5-4-3-2-1 安定練習", hs: "试试 5-4-3-2-1 安定练习" },
+  o_notnow: { en: "Not right now", ht: "現在先不用", hs: "现在先不用" },
+  o_next: { en: "Next", ht: "下一步", hs: "下一步" },
+  o_calmer: { en: "A bit calmer", ht: "平靜一點了", hs: "平静一点了" },
+  o_still: { en: "Still not great", ht: "還是不太好", hs: "还是不太好" },
+  o_help: { en: "Talk to someone now", ht: "現在就找人談談", hs: "现在就找人谈谈" },
+  o_help_lines: { en: "Show help lines", ht: "查看求助專線", hs: "查看求助热线" },
+  o_msg_guide: { en: "Message my Counselor guide", ht: "傳訊息給輔導師嚮導", hs: "发消息给咨询师向导" },
+  o_find_guide: { en: "Find a Counselor guide", ht: "尋找輔導師嚮導", hs: "寻找咨询师向导" },
+  o_share_win: { en: "Share a small win", ht: "分享一個小勝利", hs: "分享一个小胜利" },
+  o_dance: { en: "Do a happy dance!", ht: "一起跳個開心舞！", hs: "一起跳个开心舞！" },
+  o_again: { en: "Again!", ht: "再一次！", hs: "再一次！" },
+  o_play: { en: "Play with {pet}", ht: "和 {pet} 玩一下", hs: "和 {pet} 玩一下" },
+  o_trick: { en: "Show me a trick", ht: "表演一招", hs: "表演一招" },
+  o_read: { en: "Read something short", ht: "讀一篇短文", hs: "读一篇短文" },
+  o_ask: { en: "Ask the community", ht: "問問社群", hs: "问问社区" },
+  o_talk: { en: "Talk to {pet}", ht: "和 {pet} 聊聊", hs: "和 {pet} 聊聊" },
+  o_wake: { en: "Wake {pet} gently", ht: "輕輕叫醒 {pet}", hs: "轻轻叫醒 {pet}" },
+  o_read_it: { en: "Read it", ht: "看看", hs: "看看" },
+  o_show: { en: "Show me", ht: "帶我去", hs: "带我去" },
+  o_peek: { en: "Take a look", ht: "看一看", hs: "看一看" },
+  o_later: { en: "Later", ht: "等一下", hs: "等一下" },
+  o_slept_ok: { en: "Pretty well", ht: "還不錯", hs: "还不错" },
+  o_slept_bad: { en: "Not really", ht: "不太好", hs: "不太好" },
+  o_just_checking: { en: "I'm just checking in", ht: "我只是來看看", hs: "我只是来看看" },
+  win_draft: { en: "Small win: ", ht: "小小的勝利：", hs: "小小的胜利：" },
+  talk_label: { en: "{pet} says", ht: "{pet} 說", hs: "{pet} 说" },
+};
+/* Short reactions spoken right at the Companion when touched. */
+const QUIPS = {
+  pet: { en: ["Hehe!", "Boop!", "Hi again!", "That tickles!"], ht: ["嘿嘿！", "啵！", "又見面了！", "好癢喔！"], hs: ["嘿嘿！", "啵！", "又见面了！", "好痒哦！"] },
+  stroke: { en: ["Mmm, that's nice.", "So cozy…", "Keep going…"], ht: ["嗯～好舒服。", "好溫暖…", "再摸摸…"], hs: ["嗯～好舒服。", "好温暖…", "再摸摸…"] },
+  hug: { en: ["Warm hugs back!", "I needed that too.", "Squeeze!"], ht: ["回你一個暖暖的抱抱！", "我也需要這個抱抱。", "抱緊緊！"], hs: ["回你一个暖暖的抱抱！", "我也需要这个抱抱。", "抱紧紧！"] },
+  wake: { en: ["Mm? Oh, hi!"], ht: ["嗯？啊，嗨！"], hs: ["嗯？啊，嗨！"] },
+  hi: { en: ["Hi! Nice to meet you!"], ht: ["嗨！很高興認識你！"], hs: ["嗨！很高兴认识你！"] },
+  species: { en: ["Hi! I'm a {species}!"], ht: ["嗨！我是{species}！"], hs: ["嗨！我是{species}！"] },
+};
+
 </script>
 <script>
 /* BRC Crossings — app shell: state, screens and actions.
@@ -756,6 +882,7 @@ const S = {
   match: null, dm: [], dmDraft: "", joined: ["c1"], owned: [], wear: [], helpful: {}, translated: {}, seen: {},
   posts: POSTS.map(p => ({ ...p, replies: p.replies.map(r => ({ ...r })) })), thread: null, circle: null,
   crisis: null, toast: null, posted: false, replyDraft: "", breathing: false, petHinted: false, timeOverride: null, enter: null,
+  away: false, talk: { node: null, shown: null, typed: null, at: 0, seen: {}, ambient: 0 },
 };
 
 /* ---------- helpers ---------- */
@@ -856,14 +983,16 @@ function initWorld() {
   try { world = new window.CompanionWorld(); }
   catch (e) { console.warn("Companion3D unavailable", e); worldFailed = true; render(); return; }
   world.labeler = st => t("diorama_label", { pet: S.petName, species: L(species(st.species)), state: st.asleep ? t("state_asleep") : t("state_awake") });
-  ["pet", "stroke", "hug", "wake"].forEach(e => world.on(e, () => { if (!S.petHinted) { S.petHinted = true; document.querySelector(".hint")?.remove(); } }));
+  world.on("pet", () => { S.petHinted = true; quip("pet"); });
+  world.on("stroke", () => { S.petHinted = true; quip("stroke"); });
+  world.on("hug", () => { S.petHinted = true; quip("hug"); });
+  world.on("wake", () => { if (S.away) wakeFromAway(); else quip("wake"); });
   syncWorld();
   render();
 }
 function syncWorld() {
   if (!world) return;
-  const picking = S.screen === "onboard" && S.step === 4;
-  world.set({ species: S.species, mood: S.checkedIn ? S.mood : null, asleep: !S.checkedIn && !picking, wear: S.wear, timeOverride: S.timeOverride });
+  world.set({ species: S.species, mood: S.checkedIn ? S.mood : null, asleep: S.away && S.screen !== "onboard", wear: S.wear, timeOverride: S.timeOverride });
 }
 function mountStage() {
   const el = document.querySelector("[data-stage]");
@@ -937,6 +1066,185 @@ function guideCard() {
     <span class="t"><b>${g ? esc(g.name) : t("find_guide")}</b><span>${sub}</span></span>${icon(g ? "chat" : "chev")}</button>`;
 }
 
+/* ---------- the Companion's voice ----------
+   A scripted conversation: Pebble speaks first, the Member answers with reply chips.
+   Lines come from TT in content.js; nothing is generated. */
+const REDUCED_UI = window.matchMedia("(prefers-reduced-motion: reduce)");
+let lastInput = Date.now();
+function tt(k, vars = {}) {
+  let s = L(TT[k]) || k;
+  const all = { name: "Lily", pet: S.petName, greet: greeting(), ...vars };
+  for (const v in all) s = s.split(`{${v}}`).join(all[v]);
+  return s;
+}
+const isLate = () => { const h = hour(); return h >= 23 || h < 4.5; };
+function season() { const m = new Date().getMonth(); return m >= 2 && m <= 4 ? "spring" : m >= 5 && m <= 7 ? "summer" : m >= 8 && m <= 10 ? "autumn" : "winter"; }
+function talkStart() {
+  if (S.away) return "away";
+  if (!S.checkedIn) return isLate() ? "late" : S.petHinted ? "hello" : "hello_first";
+  return "r_" + S.mood;
+}
+function talkTo(node, opts = {}) {
+  Object.assign(S.talk, { node, at: Date.now(), typed: null });
+  if (!opts.ambient) S.talk.ambient = 0;
+  const n = TALK[node] && TALK[node]();
+  if (n && n.emote && world) world.emote(n.emote);
+  if (!opts.silent) render();
+}
+function checkInFrom(mood) {
+  Object.assign(S, { mood, checkedIn: true, petHinted: true });
+  const got = earn(5); toast(t("seeds_earned", { n: got || 0 }));
+  talkTo("r_" + mood, { silent: true });
+  render();
+  if (world) world.celebrate(HARD_MOODS.includes(mood));
+}
+function startBreathe() {
+  if (S.screen !== "companion") { S.stack = []; S.screen = "companion"; }
+  S.breathing = true; if (world) world.breathe(true); render(true);
+}
+function wakeFromAway() {
+  S.away = false; render();
+  if (world) { world.emote("surprise"); setTimeout(() => world && world.emote("wave"), 950); }
+  talkTo("back");
+}
+function guideOpt() {
+  if (S.match) return { label: tt("o_msg_guide"), icon: "chat", go: () => go("dm") };
+  if (licensedHere()) return { label: tt("o_find_guide"), icon: "shield", go: () => go("guide") };
+  return null;
+}
+const O = {
+  thanks: () => ({ label: tt("o_thanks"), go: () => { if (world) world.sit(false); talkTo("bye"); } }),
+  breathe: (k = "o_breathe") => ({ label: tt(k), icon: "wind", kind: "primary", go: startBreathe }),
+  sit: (k = "o_sit") => ({ label: tt(k), icon: "heart", go: () => { if (world) { world.sit(true); world.emote("comfort"); } talkTo("sit"); } }),
+  help: (k = "o_help") => ({ label: tt(k), icon: "help", kind: "help", go: () => { S.crisis = "help"; render(); } }),
+  later: () => ({ label: tt("o_later"), go: () => talkTo("bye") }),
+  read: () => ({ label: tt("o_read"), icon: "learn", go: () => go("learn") }),
+  next: node => ({ label: tt("o_next"), kind: "primary", go: () => talkTo(node) }),
+};
+const moodOpt = id => { const m = MOODS.find(x => x.id === id); return { label: L(m), face: m, go: () => checkInFrom(id) }; };
+const askMood = () => [moodOpt("great"), moodOpt("good"), moodOpt("okay"), { label: tt("o_not_great"), face: MOODS.find(x => x.id === "low"), go: () => talkTo("notgreat") }];
+const TALK = {
+  hello: () => ({ text: tt("hello"), emote: "wave", opts: askMood() }),
+  hello_first: () => ({ text: tt("hello_first"), emote: "wave", opts: askMood() }),
+  hello_c: () => ({ text: tt("hello_c"), emote: "tilt" }),
+  late: () => ({ text: tt("late"), emote: "yawn", opts: [O.breathe("o_winddown"), { label: tt("o_just_checking"), go: () => talkTo("hello") }] }),
+  away: () => ({ text: tt("away"), opts: [{ label: tt("o_wake"), icon: "sun", kind: "primary", go: wakeFromAway }] }),
+  back: () => ({ text: tt("back"), emote: "surprise", opts: askMood() }),
+  notgreat: () => ({ text: tt("notgreat"), emote: "comfort", opts: ["low", "sad", "anxious", "frustrated", "tired"].map(moodOpt) }),
+  r_great: () => ({ text: tt("r_great"), emote: "cheer", opts: [{ label: tt("o_share_win"), icon: "ask", kind: "primary", go: () => { S.draft = tt("win_draft"); S.draftFocus = "individual"; go("compose"); } }, { label: tt("o_dance"), icon: "sun", go: () => talkTo("dance") }, O.thanks()] }),
+  r_good: () => ({ text: tt("r_good"), emote: "nod", opts: [{ label: tt("o_play"), icon: "paw", go: () => talkTo("play") }, O.thanks()] }),
+  r_okay: () => ({ text: tt("r_okay"), emote: "tilt", opts: [O.breathe(), O.read(), O.sit("o_hangout")] }),
+  r_low: () => ({ text: tt("r_low"), emote: "comfort", opts: [O.breathe(), O.sit(), guideOpt(), O.help()].filter(Boolean), note: true }),
+  r_sad: () => ({ text: tt("r_sad"), emote: "comfort", opts: [O.breathe(), O.sit(), guideOpt(), O.help()].filter(Boolean), note: true }),
+  r_anxious: () => ({ text: tt("r_anxious"), emote: "comfort", opts: [O.breathe(), { label: tt("o_ground"), icon: "globe", go: () => talkTo("g5") }, O.sit("o_notnow"), O.help()], note: true }),
+  r_frustrated: () => ({ text: tt("r_frustrated"), emote: "nod", opts: [O.breathe("o_three"), { label: tt("o_ask"), icon: "ask", go: () => go("compose") }, O.sit(), O.help()], note: true }),
+  r_tired: () => ({ text: tt("r_tired"), emote: "comfort", opts: [O.breathe("o_winddown"), O.sit(), O.read()], note: true }),
+  g5: () => ({ text: tt("g5"), emote: "think", opts: [O.next("g4")] }),
+  g4: () => ({ text: tt("g4"), emote: "nod", opts: [O.next("g3")] }),
+  g3: () => ({ text: tt("g3"), emote: "tilt", opts: [O.next("g2")] }),
+  g2: () => ({ text: tt("g2"), emote: "sniff", opts: [O.next("g1")] }),
+  g1: () => ({ text: tt("g1"), emote: "comfort", opts: [O.next("g_end")] }),
+  g_end: () => ({ text: tt("g_end"), emote: "tilt", opts: [{ label: tt("o_calmer"), go: () => talkTo("proud") }, { label: tt("o_still"), go: () => talkTo("still_hard") }] }),
+  proud: () => ({ text: tt("proud"), emote: "cheer", opts: [O.thanks()] }),
+  still_hard: () => ({ text: tt("still_hard"), emote: "comfort", opts: [guideOpt(), O.help(), O.sit()].filter(Boolean), note: true }),
+  sit: () => ({ text: tt("sit"), opts: [O.thanks()] }),
+  dance: () => ({ text: tt("dance"), emote: "dance", opts: [{ label: tt("o_again"), icon: "sun", go: () => talkTo("dance") }, O.thanks()] }),
+  play: () => ({ text: tt("play"), emote: "jump", opts: [{ label: tt("o_trick"), icon: "sun", go: () => talkTo("dance") }, O.thanks()] }),
+  bye: () => ({ text: tt("bye"), emote: "nod", opts: [{ label: tt("o_talk"), icon: "chat", go: () => talkTo(S.checkedIn ? "play" : "hello") }] }),
+  after_breathe: () => ({ text: tt("after_breathe"), emote: "nod", opts: [O.breathe("o_again"), O.thanks()] }),
+  posted: () => ({ text: tt("posted"), emote: "cheer", opts: [O.thanks()] }),
+  after_hold: () => ({ text: tt("after_hold"), emote: "comfort", opts: [O.help("o_help_lines"), O.sit(), guideOpt()].filter(Boolean), note: true }),
+  nudge_answer: () => ({ text: tt("nudge_answer"), emote: "tilt", opts: [{ label: tt("o_read_it"), icon: "shield", kind: "primary", go: () => actions.thread("p1") }, O.later()] }),
+  nudge_guide: () => ({ text: tt("nudge_guide"), emote: "wave", opts: [{ label: tt("o_show"), icon: "shield", kind: "primary", go: () => go("guide") }, O.later()] }),
+  nudge_circle: () => ({ text: tt("nudge_circle"), emote: "tilt", opts: [{ label: tt("o_peek"), icon: "circles", kind: "primary", go: () => actions.circle("c1") }, O.later()] }),
+  amb_season: () => ({ text: tt("amb_" + season()), emote: "sniff" }),
+  amb_night: () => ({ text: tt("amb_night"), emote: "think" }),
+  amb_rain: () => ({ text: tt("amb_rain"), emote: "tilt", opts: [O.sit(), O.later()] }),
+  amb_weekend: () => ({ text: tt("amb_weekend"), emote: "tilt" }),
+  amb_morning: () => ({ text: tt("amb_morning"), emote: "wave", opts: [{ label: tt("o_slept_ok"), go: () => talkTo("glad") }, { label: tt("o_slept_bad"), go: () => talkTo("rough_night") }] }),
+  glad: () => ({ text: tt("glad"), emote: "nod" }),
+  rough_night: () => ({ text: tt("rough_night"), emote: "comfort", opts: [O.breathe(), O.thanks()] }),
+};
+/* Nodes the Companion may move on from by itself when the Member is quiet. Hard-day
+   and exercise nodes are never interrupted. */
+const RESTFUL = ["bye", "glad", "proud", "posted", "r_good", "r_great", "dance", "play", "after_breathe", "amb_season", "amb_night", "amb_weekend", "hello_c"];
+function pickAmbient() {
+  const seen = S.talk.seen, h = hour();
+  const next = [
+    ["nudge_answer", !S.seen.p1],
+    ["nudge_guide", !S.match && licensedHere() && S.optMatch],
+    ["nudge_circle", S.focuses.includes("parenting")],
+    ["amb_morning", h >= 5 && h < 11],
+    ["amb_night", h < 6 || h >= 20],
+    ["amb_rain", S.checkedIn && S.mood === "sad"],
+    ["amb_weekend", [0, 6].includes(new Date().getDay())],
+    ["amb_season", true],
+  ].find(([id, ok]) => ok && !seen[id]);
+  if (!next) return null;
+  seen[next[0]] = true;
+  return next[0];
+}
+function talkBox(where) {
+  if (!S.talk.node) Object.assign(S.talk, { node: talkStart(), at: Date.now() });
+  let id = S.talk.node;
+  if (where === "companion" && !S.checkedIn && ["hello", "hello_first"].includes(id)) id = "hello_c";
+  S.talk.shown = id;
+  let n = TALK[id] ? TALK[id]() : TALK.bye();
+  // the check-in panel sits right below on the Companion screen, so mood chips would say it twice
+  if (where === "companion" && id === "back") n = { ...n, opts: null };
+  const key = id + "|" + S.lang;
+  const typed = S.talk.typed === key || REDUCED_UI.matches;
+  return `<div class="talk" role="group" aria-label="${esc(tt("talk_label"))}"><div class="talk-box">
+      <span class="talk-name">${icon("paw")}${esc(S.petName)}</span>
+      <p class="talk-text" aria-live="polite"><span class="sr">${esc(n.text)}</span><span class="talk-typed" aria-hidden="true" data-key="${key}" data-full="${esc(n.text)}">${typed ? esc(n.text) : ""}</span>${typed ? "" : '<span class="talk-dots" aria-hidden="true"><i></i><i></i><i></i></span>'}</p>
+      ${n.opts && n.opts.length ? `<div class="talk-opts ${typed ? "" : "wait"}">${n.opts.map((o, i) => `<button class="talk-opt ${o.kind || ""}" data-a="talk" data-v="${i}" style="--i:${i}">${o.face ? moodFace(o.face, 26) : o.icon ? icon(o.icon) : ""}<span>${esc(o.label)}</span></button>`).join("")}</div>` : ""}
+      ${n.note ? `<p class="talk-note">${icon("shield")}<span>${tt("note_companion")}</span></p>` : ""}
+    </div></div>`;
+}
+function runTypewriter() {
+  const el = document.querySelector(".talk-typed");
+  if (!el) return;
+  const key = el.dataset.key;
+  if (S.talk.typed === key) return;
+  S.talk.typed = key;
+  const full = el.dataset.full, cjk = /[㐀-鿿]/.test(full), step = cjk ? 1 : 2;
+  if (world) world.talk(Math.min(4.5, 0.8 + full.length / (cjk ? 14 : 32)));
+  let i = 0;
+  setTimeout(function tick() {
+    if (!el.isConnected) return;
+    el.parentNode.querySelector(".talk-dots")?.remove();
+    i += step; el.textContent = full.slice(0, i);
+    if (i < full.length) setTimeout(tick, 28);
+    else el.closest(".talk-box")?.querySelector(".talk-opts")?.classList.remove("wait");
+  }, 480);
+}
+let quipAt = 0, quipN = 0;
+function quip(kind, vars = {}) {
+  const stage = document.querySelector("[data-stage]");
+  if (!stage || !world || Date.now() - quipAt < 1000) return;
+  quipAt = Date.now();
+  const list = L(QUIPS[kind]);
+  let text = list[quipN++ % list.length];
+  for (const v in vars) text = text.split(`{${v}}`).join(vars[v]);
+  const p = world.headScreen();
+  stage.querySelector(".quip")?.remove();
+  stage.insertAdjacentHTML("beforeend", `<div class="quip" role="status" style="left:${Math.round(p.x)}px;top:${Math.round(p.y - 16)}px">${esc(text)}</div>`);
+  setTimeout(() => stage.querySelector(".quip")?.remove(), 1900);
+  world.talk(0.8);
+}
+/* When the Member is quiet for a while, the Companion brings up something real:
+   a new answer, a Circle, the season, the night sky. A few times per visit at most. */
+setInterval(() => {
+  if (!["home", "companion"].includes(S.screen) || S.crisis || S.breathing || S.away) return;
+  if (!RESTFUL.includes(S.talk.shown)) return;
+  if (Date.now() - lastInput < 14000 || Date.now() - S.talk.at < 14000 || S.talk.ambient >= 4) return;
+  const a = document.activeElement;
+  if (a && ["INPUT", "TEXTAREA"].includes(a.tagName)) return;
+  const next = pickAmbient();
+  if (next) { S.talk.ambient++; talkTo(next, { ambient: true }); }
+}, 2000);
+["pointerdown", "keydown"].forEach(ev => document.addEventListener(ev, () => (lastInput = Date.now()), true));
+
 /* ---------- onboarding ---------- */
 function onboarding() {
   const st = S.step;
@@ -980,15 +1288,11 @@ function onboarding() {
 /* ---------- screens ---------- */
 function greeting() { const h = hour(); return t(h < 12 && h >= 4 ? "greet_morning" : h < 18 && h >= 12 ? "greet_afternoon" : "greet_evening", { name: "Lily" }); }
 function home() {
-  const m = MOODS.find(x => x.id === S.mood);
-  const status = S.checkedIn ? t("feeling", { mood: L(m) }) : t("napping", { pet: esc(S.petName) });
   return `${hdrMain()}<div class="scroll">
-    <section class="stage home" data-stage="home">
-      <div class="stage-copy ${skyDark() ? "dark" : ""}"><h1>${greeting()}</h1><p>${status}</p></div>
-      <div class="stage-cta">${S.checkedIn ? "" : `<button class="btn sun" data-a="go" data-v="companion">${icon("check")}${t("check_in")}</button>`}</div>
-      ${!S.petHinted && S.checkedIn ? `<div class="hint">${icon("touch")}${t("pet_hint", { pet: esc(S.petName) })}</div>` : ""}
-    </section>
+    <h1 class="sr">${greeting()}</h1>
+    <section class="stage home" data-stage="home"></section>
     <div class="sheet-top">
+      ${talkBox("home")}
       ${guideCard()}
       <button class="askfield" data-a="go" data-v="compose">${icon("ask")}${t("ask_placeholder")}</button>
       <h2 class="section-h">${t("community")}<button class="more" data-a="go" data-v="learn">${icon("learn")}${t("learn")}</button></h2>
@@ -1057,7 +1361,6 @@ function dm() {
 }
 function companionScreen() {
   const m = MOODS.find(x => x.id === S.mood);
-  const hard = S.checkedIn && HARD_MOODS.includes(S.mood);
   const sp = L(species(S.species));
   const checkin = S.checkedIn
     ? `<div class="panel tray in" style="display:flex;gap:14px;align-items:center">${moodFace(m, 48)}<div style="flex:1"><b style="color:var(--forest);font:600 var(--fs-m)/1.3 var(--display)">${t("checked_in")}</b><div class="muted">${L(m)}${S.tags.length ? " · " + S.tags.map(esc).join(", ") : ""}</div></div></div>`
@@ -1071,12 +1374,11 @@ function companionScreen() {
   const top = isRoot();
   return `${top ? hdrRoot(t("companion")) : hdrSub(t("companion"))}<div class="scroll" id="compScroll">
     <section class="stage companion" data-stage="companion">
-      <div class="stage-copy ${skyDark() ? "dark" : ""}"><h1>${esc(S.petName)}</h1><p>${S.checkedIn ? sp : `${sp} · ${t("napping", { pet: esc(S.petName) })}`}</p></div>
+      <div class="stage-copy ${skyDark() ? "dark" : ""}"><h1>${esc(S.petName)}</h1><p>${sp}</p></div>
       ${S.breathing ? `<div class="breathe"><div class="ring"></div><div class="say"><span>${t("breathe_in")}</span><span>${t("breathe_out")}</span></div><button class="btn quiet" data-a="breathe">${t("done")}</button></div>` : ""}
-      ${!S.petHinted && !S.breathing ? `<div class="hint">${icon("touch")}${t("pet_hint", { pet: esc(S.petName) })}</div>` : ""}
     </section>
     <div class="sheet-top">
-      ${hard ? `<div class="comfort">${icon("heart")}<p>${t("comfort", { pet: esc(S.petName) })}</p></div><div style="padding:0 var(--gut) var(--gap)"><button class="btn primary block" data-a="breathe">${icon("wind")}${t("breathe", { pet: esc(S.petName) })}</button></div>` : ""}
+      ${S.breathing ? "" : talkBox("companion")}
       ${checkin}
       <h2 class="section-h">${t("badges")}</h2>
       <div class="badges">${BADGES.map(b => { const on = (b.id === "first_checkin" && S.checkedIn) || (b.id === "first_post" && S.posted);
@@ -1174,6 +1476,8 @@ function render(nav = false) {
   if (nsc) { nsc.style.scrollBehavior = "auto"; nsc.scrollTop = S.screen === "dm" ? nsc.scrollHeight : keep; nsc.style.scrollBehavior = ""; }
   if (active) { const el = document.querySelector(`[data-model="${active}"]`); if (el) { el.focus(); const v = el.value; el.value = ""; el.value = v; } }
   lastScreen = S.screen; S.enter = null;
+  runTypewriter();
+  if (S.screen === "onboard" && S.step === 0 && world && !S.saidHi) { S.saidHi = true; setTimeout(() => { world.emote("wave"); quip("hi"); }, 1400); }
   if (S.toast) { const id = S.toast.id; setTimeout(() => { if (S.toast && S.toast.id === id) { S.toast = null; $(".toast")?.remove(); } }, 2800); }
   renderNotes();
 }
@@ -1198,7 +1502,8 @@ function renderNotes() {
   const key = S.screen === "onboard" ? "onboard" : S.screen;
   n.textContent = S.screen === "onboard" ? (S.step ? `Onboarding · step ${S.step} of 4` : "Welcome") : key[0].toUpperCase() + key.slice(1);
   $("#screenNotes").innerHTML = (SCREEN_NOTES[key] || SCREEN_NOTES.home).map(x => `<li>${esc(x)}</li>`).join("");
-  $("#times").innerHTML = [[null, "Live"], [7, "Morning"], [13, "Day"], [18.6, "Dusk"], [22, "Night"]].map(([h, l]) => `<button data-time="${h ?? ""}" class="${S.timeOverride === h ? "on" : ""}">${l}</button>`).join("");
+  $("#times").innerHTML = [[null, "Live"], [7, "Morning"], [13, "Day"], [18.6, "Dusk"], [22, "Night"], [23.6, "Late night"]].map(([h, l]) => `<button data-time="${h ?? ""}" class="${S.timeOverride === h ? "on" : ""}">${l}</button>`).join("")
+    + `<button data-away class="${S.away ? "on" : ""}">A day away</button>`;
   $("#stateDump").textContent = JSON.stringify({ screen: S.screen, lang: S.lang, location: S.state, counselorServices: licensedHere() ? "available" : "gated", matchingConsent: S.optMatch,
     focusAreas: S.focuses, mainFocus: S.mainFocus, riverSeeds: S.seeds, earnedToday: `${S.earnedToday}/25 cap`, checkedIn: S.checkedIn, mood: S.mood, companion: `${S.petName} (${S.species})`, wearing: S.wear,
     guide: S.match ? counselor(S.match).name : null, heldItems: S.posts.filter(p => p.held).length + S.posts.reduce((a, p) => a + p.replies.filter(r => r.held).length, 0) }, null, 2);
@@ -1223,7 +1528,7 @@ const actions = {
   },
   mainFocus(v) { S.mainFocus = v; S.draftFocus = v; render(); },
   state(v) { S.state = v; if (S.match && !counselor(S.match).states.includes(v)) S.match = null; render(); },
-  species(v) { if (S.species === v) return; S.species = v; render(); },
+  species(v) { if (S.species === v) return; S.species = v; render(); setTimeout(() => { if (world) world.emote("wave"); quip("species", { species: L(species(v)) }); }, 450); },
   tab(v) { S.stack = []; S.screen = v; S.breathing = false; render(true); },
   go(v) { go(v); },
   back() { back(); },
@@ -1242,8 +1547,8 @@ const actions = {
     const risky = isRisky(text);
     const p = { id: "u" + Date.now(), anon: S.persona === "anon", author: "Lily Z.", focus: S.draftFocus, ago: null, orig: S.lang === "en" ? "en" : "zh", text, answer: null, replies: [], helpful: 0, mine: true, held: risky };
     S.posts.unshift(p); S.draft = ""; S.posted = true; S.stack = []; S.screen = "home"; S.enter = p.id;
-    if (risky) S.crisis = "held";
-    else { const got = earn(5); toast(got ? `${t("posted")} · ${t("seeds_earned", { n: got })}` : t("posted")); }
+    if (risky) { S.crisis = "held"; talkTo("after_hold", { silent: true }); }
+    else { const got = earn(5); toast(got ? `${t("posted")} · ${t("seeds_earned", { n: got })}` : t("posted")); talkTo("posted", { silent: true }); }
     render(true);
   },
   reply() {
@@ -1263,12 +1568,13 @@ const actions = {
     if (!S.dm.some(m => m.type === "book")) setTimeout(() => { S.dm.push({ me: false, key: "dm_suggest" }, { type: "book" }); if (S.screen === "dm") render(); }, 1100);
   },
   booked() { toast(t("opened_site"), "external"); setTimeout(render, 50); },
-  mood(v) { S.mood = v; if (world) world.stir(); render(); },
+  mood(v) { S.mood = v; if (world) world.emote("tilt"); render(); },
   tag(v) { S.tags = S.tags.includes(v) ? S.tags.filter(x => x !== v) : [...S.tags, v]; render(); },
   checkin() {
     if (!S.mood) return;
-    S.checkedIn = true; const got = earn(5);
+    S.checkedIn = true; S.petHinted = true; const got = earn(5);
     toast(t("seeds_earned", { n: got || 0 }));
+    talkTo("r_" + S.mood, { silent: true });
     render();
     if (world) world.celebrate(HARD_MOODS.includes(S.mood));
     document.querySelector("#compScroll")?.scrollTo({ top: 0, behavior: "smooth" });
@@ -1276,6 +1582,7 @@ const actions = {
   breathe() {
     S.breathing = !S.breathing;
     if (world) world.breathe(S.breathing);
+    if (!S.breathing) talkTo("after_breathe", { silent: true });
     render();
     if (S.breathing) document.querySelector("#compScroll")?.scrollTo({ top: 0, behavior: "smooth" });
   },
@@ -1293,12 +1600,21 @@ const actions = {
     render(); if (world) world.anim.pop = world.time;
   },
   toast(v) { toast(t(v), v === "waitlisted" ? "check" : "learn"); render(); },
-  replay() { Object.assign(S, { screen: "onboard", step: 0, stack: [] }); render(true); },
+  replay() { Object.assign(S, { screen: "onboard", step: 0, stack: [], saidHi: false }); render(true); },
+  talk(i) {
+    const n = TALK[S.talk.shown] && TALK[S.talk.shown]();
+    const o = n && n.opts && n.opts[+i];
+    if (!o) return;
+    const before = S.screen;
+    o.go();
+    if (S.screen !== before && S.talk.node === S.talk.shown) Object.assign(S.talk, { node: "bye", typed: null });
+  },
 };
 
 document.addEventListener("click", e => {
   const tb = e.target.closest("[data-time]");
-  if (tb) { S.timeOverride = tb.dataset.time === "" ? null : +tb.dataset.time; render(); return; }
+  if (tb) { S.timeOverride = tb.dataset.time === "" ? null : +tb.dataset.time; if (!S.checkedIn && !S.away) talkTo(talkStart(), { silent: true }); render(); return; }
+  if (e.target.closest("[data-away]")) { S.away = !S.away; if (S.away) S.checkedIn = false; talkTo(talkStart(), { silent: true }); render(); return; }
   const el = e.target.closest("[data-a]");
   if (!el || !el.closest("#app")) return;
   const stop = e.target.closest("[data-stop]");
@@ -1354,6 +1670,8 @@ if (params.get("thread")) S.thread = params.get("thread");
 if (params.get("draft")) S.draft = params.get("draft");
 if (params.get("time")) S.timeOverride = +params.get("time");
 if (params.get("hinted") === "1") S.petHinted = true;
+if (params.get("away") === "1") S.away = true;
+if (params.get("talk")) S.talk.node = params.get("talk");
 render(true);
 window.addEventListener("companion-ready", initWorld);
 initWorld();
@@ -1537,6 +1855,13 @@ function addFace(head, o) {
     Object.assign(face.mouths, { smile, frown, flat, open });
     for (const k in face.mouths) { face.mouths[k].visible = false; head.add(face.mouths[k]); }
   }
+  face.brows = [];
+  const browGeo = new THREE.CapsuleGeometry(o.eyeR * 0.19, o.eyeR * 1.05, 4, 8);
+  for (const s of [-1, 1]) {
+    const b = mesh(browGeo, ink, s * o.eye[0] * 1.05, o.eye[1] + o.eyeR * 2.75, o.eye[2] - o.eyeR * 0.55, false);
+    b.rotation.set(0, s * 0.28, Math.PI / 2); b.visible = false; b.userData.y = b.position.y; b.userData.s = s;
+    head.add(b); face.brows.push(b);
+  }
   return face;
 }
 
@@ -1645,6 +1970,7 @@ function buildRig(species) {
     rig.face = addFace(head, { eye: [0.13, 0.05, 0.3], eyeR: 0.048, mouth: [0, -0.17, 0.36], blush: [0.25, -0.07, 0.22] });
   }
   rig.baseHead = head.position.clone();
+  rig.arms.forEach(a => { a.userData.basePos = a.position.clone(); a.userData.baseRot = a.rotation.clone(); });
   root.traverse(o => { if (o.isMesh) o.userData.pet = true; });
   return rig;
 }
@@ -1741,6 +2067,8 @@ export class CompanionWorld {
     this.look = { yaw: 0, pitch: 0 };
     this.weather = { ...WEATHER.none };
     this.blinkRand = rng(7);
+    this.emo = null; this.talkUntil = -10; this.lastInteract = 0; this.sitting = false; this.hopH = 0.32;
+    this.petPos = PET_POS.clone(); this.walk = { state: 'idle', target: null, next: 7, spot: 0, until: 0 };
 
     const scene = new THREE.Scene();
     this.scene = scene;
@@ -2009,7 +2337,7 @@ export class CompanionWorld {
     if (this.rig && this.rig.species === species) return;
     if (this.rig) this.island.remove(this.rig.root);
     this.rig = buildRig(species);
-    this.rig.root.position.copy(PET_POS); this.rig.root.rotation.y = 0.18;
+    this.rig.root.position.copy(this.petPos); this.rig.root.rotation.y = 0.18;
     this.island.add(this.rig.root);
     this.accessories = {};
     this.syncWear(true);
@@ -2042,6 +2370,61 @@ export class CompanionWorld {
     else { this.anim.hop = this.time; this.spawn('spark', head, 6); this.spawn('heart', head, 2); this.anim.happy = 2; }
   }
   breathe(on) { this.anim.breath = on; this.anim.breathT = this.time; }
+  /* Gestures the app can ask for; each plays once on the shared motion clock. */
+  emote(name, dur) {
+    const D = { wave: 1.6, nod: 0.9, tilt: 1.8, jump: 0.9, cheer: 1.2, dance: 1.4, comfort: 2.6, think: 1.6, surprise: 0.9, sniff: 1.8, yawn: 1.3 };
+    this.emo = { name, t0: this.time, dur: dur || D[name] || 1.2 };
+    this.lastInteract = this.time;
+    if (name === 'jump' || name === 'cheer') { this.hopH = 0.5; this.anim.hop = this.time; }
+    if (name === 'surprise') { this.hopH = 0.16; this.anim.hop = this.time; }
+    if (name === 'dance') { this.hopH = 0.3; this.anim.hop = this.time; this.spawn('spark', this.headWorld(), 5); }
+    if (name === 'cheer') this.spawn('spark', this.headWorld(), 6);
+    if (name === 'comfort') this.spawn('heart', this.headWorld(), 2);
+  }
+  talk(seconds) { this.talkUntil = this.time + seconds; this.lastInteract = this.time; }
+  sit(on) { this.sitting = on; this.lastInteract = this.time; }
+  headScreen() {
+    const v = this.headWorld().project(this.camera), r = this.canvas.getBoundingClientRect();
+    return { x: (v.x + 1) / 2 * r.width, y: (1 - v.y) / 2 * r.height };
+  }
+  /* Idle life: wander to a spot, sniff a flower or wave, come home; sit close when asked. */
+  updateWalk(dt) {
+    const w = this.walk, t = this.time, r = this.rig, p = this.petPos;
+    const awake = !this.state.asleep || t - this.anim.wake < 7;
+    const free = awake && !this.anim.breath && !this.sitting && !REDUCED.matches && !this.pointer.down
+      && t > this.talkUntil + 1.5 && (!this.emo || this.emo.idle || t - this.emo.t0 > this.emo.dur) && t - this.lastInteract > 8
+      && ['home', 'companion', 'welcome'].includes(this.mode);
+    const SPOTS = [[-1.2, 0.45, 'sniff'], [0.6, 0.05, 'think'], [-0.45, -0.3, 'sniff'], [0.3, 0.5, 'wave']];
+    if (this.sitting && w.state !== 'sit') w.state = 'go-sit';
+    if (!this.sitting && (w.state === 'sit' || w.state === 'go-sit')) w.state = 'back';
+    if (w.state === 'idle' && free && t > w.next) {
+      const sp = SPOTS[w.spot++ % SPOTS.length];
+      w.target = new THREE.Vector3(PET_POS.x + sp[0], 0, PET_POS.z + sp[1]); w.act = sp[2]; w.state = 'out';
+    }
+    if ((w.state === 'out' || w.state === 'pause') && !free) w.state = 'back';
+    let tx = null, tz = null;
+    if (w.state === 'out') { tx = w.target.x; tz = w.target.z; }
+    else if (w.state === 'back') { tx = PET_POS.x; tz = PET_POS.z; }
+    else if (w.state === 'go-sit') { tx = PET_POS.x + 0.2; tz = PET_POS.z + 0.6; }
+    let heading = null;
+    if (tx !== null) {
+      const dx = tx - p.x, dz = tz - p.z, d = Math.hypot(dx, dz);
+      if (d < 0.03) {
+        if (w.state === 'out') { w.state = 'pause'; w.until = t + 2.8; this.emo = { name: w.act, t0: t, dur: w.act === 'wave' ? 1.6 : 1.8, idle: true }; }
+        else if (w.state === 'go-sit') w.state = 'sit';
+        else { w.state = 'idle'; w.next = t + 11 + (w.spot % 3) * 4; }
+      } else {
+        const step = Math.min(d, 0.62 * dt); p.x += dx / d * step; p.z += dz / d * step; heading = Math.atan2(dx, dz);
+      }
+    }
+    if (w.state === 'pause' && t > w.until) w.state = 'back';
+    this.walking = heading !== null;
+    const want = heading !== null ? heading : 0.18;
+    const cur = r.root.rotation.y, diff = ((want - cur + Math.PI) % TAU + TAU) % TAU - Math.PI;
+    r.root.rotation.y = cur + diff * (1 - Math.exp(-8 * dt));
+    r.root.position.x = p.x; r.root.position.z = p.z;
+    this.contact.position.x = p.x; this.contact.position.z = p.z;
+  }
 
   /* ---------- mounting ---------- */
   attach(el, mode = 'home') {
@@ -2202,9 +2585,11 @@ export class CompanionWorld {
     let y = 0, sx = 1, sy = 1;
     const hopT = (t - a.hop) / MOTION;
     if (hopT >= 0 && hopT < 1.6) {
-      if (hopT < 1) { y = still ? 0 : Math.sin(hopT * Math.PI) * 0.32; sy = 1 + Math.sin(hopT * Math.PI) * 0.08; sx = 1 - Math.sin(hopT * Math.PI) * 0.04; }
+      if (hopT < 1) { y = still ? 0 : Math.sin(hopT * Math.PI) * this.hopH; sy = 1 + Math.sin(hopT * Math.PI) * 0.08; sx = 1 - Math.sin(hopT * Math.PI) * 0.04; }
       else { const k = (hopT - 1) / 0.6; const s = 1 - springOut(k); sy = 1 - 0.12 * s * (1 - k); sx = 1 + 0.08 * s * (1 - k); }
     }
+    if (hopT > 1.6) this.hopH = 0.32;
+    if (this.walking && !still) { const st = Math.abs(Math.sin(t * 11)); y += st * 0.06; sy *= 1 - (1 - st) * 0.04; }
     a.hug = damp(a.hug, a.hugOn ? 1 : 0, a.hugOn ? 9 : 6, dt);
     sx *= 1 + a.hug * 0.1; sy *= 1 - a.hug * 0.1;
     const popT = (t - a.pop) / MOTION;
@@ -2231,7 +2616,7 @@ export class CompanionWorld {
     if (mood === 'low' || mood === 'sad') pitch += 0.12;
     const k = still ? 30 : 7;
     this.look.yaw = damp(this.look.yaw, yaw, k, dt); this.look.pitch = damp(this.look.pitch, pitch, k, dt);
-    r.head.rotation.y = this.look.yaw - r.root.rotation.y * 0.6; r.head.rotation.x = this.look.pitch;
+    r.head.rotation.y = this.walking ? 0 : this.look.yaw - r.root.rotation.y * 0.6; r.head.rotation.x = this.look.pitch;
     r.head.rotation.z = asleep ? 0.12 : (a.stroke > 0.05 ? a.strokeLean * 0.15 * a.stroke : damp(r.head.rotation.z, mood === 'okay' ? 0.04 : 0, 4, dt));
     // ears + tail
     const ear = Math.sin(t * 0.7) > 0.97 && !still ? Math.sin(t * 40) * 0.25 : 0;
@@ -2248,11 +2633,27 @@ export class CompanionWorld {
       else if (r.species === 'rabbit') r.tail.position.x = Math.sin(t * wag * 1.5) * 0.02;
     }
     // arms: hug lifts arms, heron flaps on hop
+    const e = this.emo, et = e ? (t - e.t0) / e.dur : 9, eOn = !!e && et < 1;
+    const waving = eOn && e.name === 'wave' ? Math.sin(Math.PI * Math.min(1, et * 1.25)) : 0;
+    const osc = Math.sin((t - (e ? e.t0 : 0)) * 13);
     r.arms.forEach((arm, i) => {
-      const s = i ? 1 : -1;
-      if (r.species === 'bird') arm.rotation.z = s * (a.hug * 0.6 + (hopT >= 0 && hopT < 1 ? Math.abs(Math.sin(hopT * Math.PI * 3)) * 0.9 : 0));
-      else if (r.species === 'otter') arm.rotation.z = s * (0.55 + a.hug * 0.5);
+      const s = i ? 1 : -1, wv = i === 1 ? waving : 0, bp = arm.userData.basePos, br = arm.userData.baseRot;
+      if (r.species === 'bird') arm.rotation.z = s * (a.hug * 0.6 + (hopT >= 0 && hopT < 1 ? Math.abs(Math.sin(hopT * Math.PI * 3)) * 0.9 : 0) + wv * (1.1 + osc * 0.35));
+      else if (r.species === 'otter') { arm.rotation.x = br.x - wv * 1.5; arm.rotation.z = s * (0.55 + a.hug * 0.5) + wv * osc * 0.4; }
+      else if (bp) arm.position.set(bp.x + s * wv * 0.1 + wv * osc * 0.04, bp.y + wv * (r.species === 'turtle' ? 0.22 : 0.42), bp.z + wv * 0.06);
     });
+    // gestures that move the head and body
+    if (eOn) {
+      if (e.name === 'nod') r.head.rotation.x += Math.sin(et * Math.PI * 4) * 0.16 * (1 - et);
+      if (e.name === 'tilt') r.head.rotation.z += 0.28 * Math.sin(Math.PI * et);
+      if (e.name === 'think') { r.head.rotation.x -= 0.22 * Math.sin(Math.PI * et); r.head.rotation.y += 0.35 * Math.sin(Math.PI * et); }
+      if (e.name === 'sniff') { r.head.rotation.x += 0.38 * Math.sin(Math.PI * et); r.head.rotation.y += Math.sin(t * 22) * 0.07; }
+      if (e.name === 'yawn') r.head.rotation.x -= 0.2 * Math.sin(Math.PI * et);
+      if (e.name === 'comfort') { r.head.rotation.z += 0.16 * Math.sin(Math.PI * Math.min(1, et * 1.4)); r.torso.rotation.x = 0.12 * Math.sin(Math.PI * et); }
+      if (e.name === 'dance') { r.torso.rotation.y = TAU * smooth(et); if (et > 0.5 && !e.hop2) { e.hop2 = true; a.hop = t; } }
+    } else { r.torso.rotation.y = 0; r.torso.rotation.x = damp(r.torso.rotation.x, 0, 6, dt); }
+    if (t < this.talkUntil && !asleep) r.head.rotation.x += Math.sin(t * 9) * 0.025;
+    if (this.sitting) r.head.rotation.z += 0.1;
     // expression
     a.happy = Math.max(0, a.happy - dt);
     const sinceWake = t - a.wake;
@@ -2271,12 +2672,27 @@ export class CompanionWorld {
     if (m === 'tired' && Math.sin(t * 0.3) > 0.985) mouth = 'open';
     if (a.happy > 0 || a.stroke > 0.3 || a.hug > 0.4) { eyes = 'happy'; mouth = 'smile'; blush = 0.8; }
     if (a.breath) { eyes = ((t - a.breathT) % 8) < 4 ? 'happy' : 'closed'; mouth = 'smile'; blush = 0.3; }
-    if (asleep) { eyes = 'closed'; mouth = 'flat'; blush = 0.25; }
+    let brow = null, eyeScale = 1;
+    if (m === 'sad' || m === 'low') brow = { tilt: 0.38, raise: 0 };
+    else if (m === 'anxious') brow = { tilt: 0.28, raise: 0.006 };
+    else if (m === 'frustrated') brow = { tilt: -0.32, raise: -0.004 };
+    if (eOn) {
+      if (e.name === 'surprise') { eyes = 'open'; lid = 1; eyeScale = 1.3; mouth = 'open'; brow = { tilt: 0, raise: 0.03 }; }
+      else if (e.name === 'comfort') { eyes = 'happy'; mouth = 'smile'; blush = 0.85; brow = { tilt: 0.2, raise: 0.01 }; }
+      else if (e.name === 'dance' || e.name === 'cheer' || e.name === 'jump') { eyes = 'happy'; mouth = 'open'; blush = 0.8; brow = null; }
+      else if (e.name === 'wave' || e.name === 'nod') { if (mouth !== 'frown') mouth = 'smile'; blush = Math.max(blush, 0.45); }
+      else if (e.name === 'yawn') { mouth = 'open'; lid = 0.4; }
+      else if (e.name === 'think') brow = { tilt: -0.1, raise: 0.015 };
+    }
+    if (this.sitting) { eyes = Math.sin(t * 0.5) > 0.2 ? 'happy' : 'open'; blush = 0.6; if (mouth === 'frown') mouth = 'flat'; }
+    if (t < this.talkUntil && !asleep && r.face.mouths.open) mouth = (Math.floor(t * 8.5) % 2) ? 'open' : (mouth === 'open' ? 'smile' : mouth === 'frown' ? 'flat' : mouth);
+    if (asleep) { eyes = 'closed'; mouth = 'flat'; blush = 0.25; brow = null; }
     // blink
     if (t > a.blinkAt) { a.blink = 0.13; a.blinkAt = t + 2.4 + this.blinkRand() * 3.2; }
     a.blink = Math.max(0, a.blink - dt);
     const f = r.face;
-    f.open.forEach(e => { e.visible = eyes === 'open'; e.scale.y = 1.18 * lid * (a.blink > 0 ? 0.12 : 1); });
+    f.open.forEach(o => { o.visible = eyes === 'open'; o.scale.y = 1.18 * lid * eyeScale * (a.blink > 0 ? 0.12 : 1); o.scale.x = eyeScale; });
+    f.brows.forEach(b => { b.visible = !!brow; if (brow) { b.position.y = b.userData.y + brow.raise; b.rotation.z = Math.PI / 2 - b.userData.s * brow.tilt; } });
     f.closed.forEach(e => (e.visible = eyes === 'closed'));
     f.happy.forEach(e => (e.visible = eyes === 'happy'));
     f.blush.forEach(b => (b.material.opacity = damp(b.material.opacity, blush * 0.75, 5, dt)));
@@ -2323,6 +2739,7 @@ export class CompanionWorld {
     c.addEventListener('pointerdown', e => {
       const p = ndc(e); const onPet = hitsPet(p);
       this.pointer.x = p.x; this.pointer.y = p.y; this.pointer.lastMove = this.time;
+      this.lastInteract = this.time;
       this.pointer.down = { cx: e.clientX, cy: e.clientY, lx: e.clientX, ly: e.clientY, moved: 0, lastHeart: 0, at: performance.now(), onPet };
       if (onPet) {
         c.style.cursor = 'grabbing';
@@ -2348,6 +2765,7 @@ export class CompanionWorld {
   wakeIfAsleep(fromUser = true) { if (this.state.asleep && this.time - this.anim.wake > 7) { this.anim.wake = this.time; this.anim.yawn = this.time + 0.2; if (fromUser) this.emit('wake'); return true; } return false; }
   stir() { return this.wakeIfAsleep(false); }
   tap() {
+    this.lastInteract = this.time;
     navigator.vibrate?.(10);
     if (this.wakeIfAsleep()) return;
     this.anim.hop = this.time; this.anim.happy = 0.9;
@@ -2369,6 +2787,7 @@ export class CompanionWorld {
     this.waterU.uT.value = REDUCED.matches ? 0 : this.time;
     this.updateWeather(dt);
     this.updateLighting(dt);
+    this.updateWalk(dt);
     this.updatePet(dt);
     this.updateParticles(dt);
     const k = 1 - Math.exp(-4.5 * dt);

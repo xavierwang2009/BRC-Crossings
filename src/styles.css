@@ -94,6 +94,38 @@ a { color: var(--river-ink); text-underline-offset: 3px; }
 .hint .ic { width: 18px; height: 18px; color: var(--berry); }
 @keyframes hint { 0% { opacity: 0; transform: translate(-50%, 8px); } 12%, 82% { opacity: 1; transform: translate(-50%, 0); } 100% { opacity: 0; transform: translate(-50%, 0); } }
 
+/* The Companion's dialogue: a cozy-game speech panel that rises out of the diorama */
+.talk { position: relative; z-index: 3; margin: -74px var(--gut) var(--gap); }
+.talk-box { position: relative; padding: 24px 16px 14px; border-radius: 26px; background: var(--card); box-shadow: var(--lift-2); }
+.talk-box::before { content: ""; position: absolute; top: -9px; left: 44%; width: 20px; height: 20px; border-radius: 4px; background: var(--card); transform: rotate(45deg); }
+.talk-name { position: absolute; top: -15px; left: 14px; display: inline-flex; align-items: center; gap: 5px; height: 30px; padding: 0 12px 0 9px; border-radius: 999px;
+  background: var(--sun); color: var(--forest); font: 600 var(--fs-s)/1 var(--display); box-shadow: 0 4px 10px -6px rgba(107, 76, 0, .6); }
+.talk-name .ic { width: 16px; height: 16px; }
+.talk-text { position: relative; margin: 0; min-height: 3em; font: 600 var(--fs-m)/1.5 var(--body); color: var(--ink); text-wrap: pretty; }
+.talk-dots { display: inline-flex; gap: 5px; padding: 8px 0; }
+.talk-dots i { width: 7px; height: 7px; border-radius: 50%; background: var(--ink-3); animation: dot 1s ease-in-out infinite; }
+.talk-dots i:nth-child(2) { animation-delay: .15s; } .talk-dots i:nth-child(3) { animation-delay: .3s; }
+@keyframes dot { 0%, 80%, 100% { opacity: .3; transform: translateY(0); } 40% { opacity: 1; transform: translateY(-3px); } }
+.talk-opts { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.talk-opts.wait { visibility: hidden; }
+.talk-opt { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; padding: 0 14px 0 10px; border: 0; border-radius: 999px; background: var(--mist); color: var(--forest);
+  font: 700 var(--fs-s)/1.2 var(--body); text-align: left; transition: transform var(--t) var(--spring), background .2s; }
+.talk-opts:not(.wait) .talk-opt { animation: enter .42s var(--spring) both; animation-delay: calc(var(--i) * 60ms); }
+.talk-opt:hover { background: var(--mist-2); }
+.talk-opt:active { transform: scale(.96); }
+.talk-opt .ic { width: 18px; height: 18px; }
+.talk-opt svg { flex: none; }
+.talk-opt.primary { background: var(--forest); color: var(--on-forest); }
+.talk-opt.primary:hover { background: var(--forest-2); }
+.talk-opt.help { background: var(--berry-soft); color: var(--berry-ink); }
+.talk-note { display: flex; gap: 6px; align-items: flex-start; margin: 12px 2px 0; font: 600 var(--fs-s)/1.4 var(--body); color: var(--ink-2); }
+.talk-note .ic { width: 16px; height: 16px; margin-top: 2px; color: var(--river-ink); }
+/* A short line spoken right at the Companion when it is touched */
+.quip { position: absolute; z-index: 4; transform: translate(-50%, -100%); padding: 8px 12px; border-radius: 16px; background: var(--card); color: var(--forest);
+  font: 700 var(--fs-s)/1.2 var(--body); white-space: nowrap; box-shadow: var(--lift); pointer-events: none; animation: quip 1.9s var(--spring) both; }
+.quip::after { content: ""; position: absolute; left: 50%; bottom: -5px; width: 10px; height: 10px; margin-left: -5px; border-radius: 2px; background: var(--card); transform: rotate(45deg); }
+@keyframes quip { 0% { opacity: 0; transform: translate(-50%, -80%) scale(.85); } 15% { opacity: 1; transform: translate(-50%, -100%) scale(1); } 80% { opacity: 1; } 100% { opacity: 0; transform: translate(-50%, -114%); } }
+
 /* Sheet that rises over the diorama */
 .scroll { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: var(--mist-2) transparent; scroll-behavior: smooth; }
 .scroll::-webkit-scrollbar { width: 6px; } .scroll::-webkit-scrollbar-thumb { background: #b9d6c5; border-radius: 6px; }

@@ -15,6 +15,7 @@ const S = {
   match: null, dm: [], dmDraft: "", joined: ["c1"], owned: [], wear: [], helpful: {}, translated: {}, seen: {},
   posts: POSTS.map(p => ({ ...p, replies: p.replies.map(r => ({ ...r })) })), thread: null, circle: null,
   crisis: null, toast: null, posted: false, replyDraft: "", breathing: false, petHinted: false, timeOverride: null, enter: null,
+  away: false, talk: { node: null, shown: null, typed: null, at: 0, seen: {}, ambient: 0 },
 };
 
 /* ---------- helpers ---------- */
@@ -115,14 +116,16 @@ function initWorld() {
   try { world = new window.CompanionWorld(); }
   catch (e) { console.warn("Companion3D unavailable", e); worldFailed = true; render(); return; }
   world.labeler = st => t("diorama_label", { pet: S.petName, species: L(species(st.species)), state: st.asleep ? t("state_asleep") : t("state_awake") });
-  ["pet", "stroke", "hug", "wake"].forEach(e => world.on(e, () => { if (!S.petHinted) { S.petHinted = true; document.querySelector(".hint")?.remove(); } }));
+  world.on("pet", () => { S.petHinted = true; quip("pet"); });
+  world.on("stroke", () => { S.petHinted = true; quip("stroke"); });
+  world.on("hug", () => { S.petHinted = true; quip("hug"); });
+  world.on("wake", () => { if (S.away) wakeFromAway(); else quip("wake"); });
   syncWorld();
   render();
 }
 function syncWorld() {
   if (!world) return;
-  const picking = S.screen === "onboard" && S.step === 4;
-  world.set({ species: S.species, mood: S.checkedIn ? S.mood : null, asleep: !S.checkedIn && !picking, wear: S.wear, timeOverride: S.timeOverride });
+  world.set({ species: S.species, mood: S.checkedIn ? S.mood : null, asleep: S.away && S.screen !== "onboard", wear: S.wear, timeOverride: S.timeOverride });
 }
 function mountStage() {
   const el = document.querySelector("[data-stage]");
@@ -196,6 +199,185 @@ function guideCard() {
     <span class="t"><b>${g ? esc(g.name) : t("find_guide")}</b><span>${sub}</span></span>${icon(g ? "chat" : "chev")}</button>`;
 }
 
+/* ---------- the Companion's voice ----------
+   A scripted conversation: Pebble speaks first, the Member answers with reply chips.
+   Lines come from TT in content.js; nothing is generated. */
+const REDUCED_UI = window.matchMedia("(prefers-reduced-motion: reduce)");
+let lastInput = Date.now();
+function tt(k, vars = {}) {
+  let s = L(TT[k]) || k;
+  const all = { name: "Lily", pet: S.petName, greet: greeting(), ...vars };
+  for (const v in all) s = s.split(`{${v}}`).join(all[v]);
+  return s;
+}
+const isLate = () => { const h = hour(); return h >= 23 || h < 4.5; };
+function season() { const m = new Date().getMonth(); return m >= 2 && m <= 4 ? "spring" : m >= 5 && m <= 7 ? "summer" : m >= 8 && m <= 10 ? "autumn" : "winter"; }
+function talkStart() {
+  if (S.away) return "away";
+  if (!S.checkedIn) return isLate() ? "late" : S.petHinted ? "hello" : "hello_first";
+  return "r_" + S.mood;
+}
+function talkTo(node, opts = {}) {
+  Object.assign(S.talk, { node, at: Date.now(), typed: null });
+  if (!opts.ambient) S.talk.ambient = 0;
+  const n = TALK[node] && TALK[node]();
+  if (n && n.emote && world) world.emote(n.emote);
+  if (!opts.silent) render();
+}
+function checkInFrom(mood) {
+  Object.assign(S, { mood, checkedIn: true, petHinted: true });
+  const got = earn(5); toast(t("seeds_earned", { n: got || 0 }));
+  talkTo("r_" + mood, { silent: true });
+  render();
+  if (world) world.celebrate(HARD_MOODS.includes(mood));
+}
+function startBreathe() {
+  if (S.screen !== "companion") { S.stack = []; S.screen = "companion"; }
+  S.breathing = true; if (world) world.breathe(true); render(true);
+}
+function wakeFromAway() {
+  S.away = false; render();
+  if (world) { world.emote("surprise"); setTimeout(() => world && world.emote("wave"), 950); }
+  talkTo("back");
+}
+function guideOpt() {
+  if (S.match) return { label: tt("o_msg_guide"), icon: "chat", go: () => go("dm") };
+  if (licensedHere()) return { label: tt("o_find_guide"), icon: "shield", go: () => go("guide") };
+  return null;
+}
+const O = {
+  thanks: () => ({ label: tt("o_thanks"), go: () => { if (world) world.sit(false); talkTo("bye"); } }),
+  breathe: (k = "o_breathe") => ({ label: tt(k), icon: "wind", kind: "primary", go: startBreathe }),
+  sit: (k = "o_sit") => ({ label: tt(k), icon: "heart", go: () => { if (world) { world.sit(true); world.emote("comfort"); } talkTo("sit"); } }),
+  help: (k = "o_help") => ({ label: tt(k), icon: "help", kind: "help", go: () => { S.crisis = "help"; render(); } }),
+  later: () => ({ label: tt("o_later"), go: () => talkTo("bye") }),
+  read: () => ({ label: tt("o_read"), icon: "learn", go: () => go("learn") }),
+  next: node => ({ label: tt("o_next"), kind: "primary", go: () => talkTo(node) }),
+};
+const moodOpt = id => { const m = MOODS.find(x => x.id === id); return { label: L(m), face: m, go: () => checkInFrom(id) }; };
+const askMood = () => [moodOpt("great"), moodOpt("good"), moodOpt("okay"), { label: tt("o_not_great"), face: MOODS.find(x => x.id === "low"), go: () => talkTo("notgreat") }];
+const TALK = {
+  hello: () => ({ text: tt("hello"), emote: "wave", opts: askMood() }),
+  hello_first: () => ({ text: tt("hello_first"), emote: "wave", opts: askMood() }),
+  hello_c: () => ({ text: tt("hello_c"), emote: "tilt" }),
+  late: () => ({ text: tt("late"), emote: "yawn", opts: [O.breathe("o_winddown"), { label: tt("o_just_checking"), go: () => talkTo("hello") }] }),
+  away: () => ({ text: tt("away"), opts: [{ label: tt("o_wake"), icon: "sun", kind: "primary", go: wakeFromAway }] }),
+  back: () => ({ text: tt("back"), emote: "surprise", opts: askMood() }),
+  notgreat: () => ({ text: tt("notgreat"), emote: "comfort", opts: ["low", "sad", "anxious", "frustrated", "tired"].map(moodOpt) }),
+  r_great: () => ({ text: tt("r_great"), emote: "cheer", opts: [{ label: tt("o_share_win"), icon: "ask", kind: "primary", go: () => { S.draft = tt("win_draft"); S.draftFocus = "individual"; go("compose"); } }, { label: tt("o_dance"), icon: "sun", go: () => talkTo("dance") }, O.thanks()] }),
+  r_good: () => ({ text: tt("r_good"), emote: "nod", opts: [{ label: tt("o_play"), icon: "paw", go: () => talkTo("play") }, O.thanks()] }),
+  r_okay: () => ({ text: tt("r_okay"), emote: "tilt", opts: [O.breathe(), O.read(), O.sit("o_hangout")] }),
+  r_low: () => ({ text: tt("r_low"), emote: "comfort", opts: [O.breathe(), O.sit(), guideOpt(), O.help()].filter(Boolean), note: true }),
+  r_sad: () => ({ text: tt("r_sad"), emote: "comfort", opts: [O.breathe(), O.sit(), guideOpt(), O.help()].filter(Boolean), note: true }),
+  r_anxious: () => ({ text: tt("r_anxious"), emote: "comfort", opts: [O.breathe(), { label: tt("o_ground"), icon: "globe", go: () => talkTo("g5") }, O.sit("o_notnow"), O.help()], note: true }),
+  r_frustrated: () => ({ text: tt("r_frustrated"), emote: "nod", opts: [O.breathe("o_three"), { label: tt("o_ask"), icon: "ask", go: () => go("compose") }, O.sit(), O.help()], note: true }),
+  r_tired: () => ({ text: tt("r_tired"), emote: "comfort", opts: [O.breathe("o_winddown"), O.sit(), O.read()], note: true }),
+  g5: () => ({ text: tt("g5"), emote: "think", opts: [O.next("g4")] }),
+  g4: () => ({ text: tt("g4"), emote: "nod", opts: [O.next("g3")] }),
+  g3: () => ({ text: tt("g3"), emote: "tilt", opts: [O.next("g2")] }),
+  g2: () => ({ text: tt("g2"), emote: "sniff", opts: [O.next("g1")] }),
+  g1: () => ({ text: tt("g1"), emote: "comfort", opts: [O.next("g_end")] }),
+  g_end: () => ({ text: tt("g_end"), emote: "tilt", opts: [{ label: tt("o_calmer"), go: () => talkTo("proud") }, { label: tt("o_still"), go: () => talkTo("still_hard") }] }),
+  proud: () => ({ text: tt("proud"), emote: "cheer", opts: [O.thanks()] }),
+  still_hard: () => ({ text: tt("still_hard"), emote: "comfort", opts: [guideOpt(), O.help(), O.sit()].filter(Boolean), note: true }),
+  sit: () => ({ text: tt("sit"), opts: [O.thanks()] }),
+  dance: () => ({ text: tt("dance"), emote: "dance", opts: [{ label: tt("o_again"), icon: "sun", go: () => talkTo("dance") }, O.thanks()] }),
+  play: () => ({ text: tt("play"), emote: "jump", opts: [{ label: tt("o_trick"), icon: "sun", go: () => talkTo("dance") }, O.thanks()] }),
+  bye: () => ({ text: tt("bye"), emote: "nod", opts: [{ label: tt("o_talk"), icon: "chat", go: () => talkTo(S.checkedIn ? "play" : "hello") }] }),
+  after_breathe: () => ({ text: tt("after_breathe"), emote: "nod", opts: [O.breathe("o_again"), O.thanks()] }),
+  posted: () => ({ text: tt("posted"), emote: "cheer", opts: [O.thanks()] }),
+  after_hold: () => ({ text: tt("after_hold"), emote: "comfort", opts: [O.help("o_help_lines"), O.sit(), guideOpt()].filter(Boolean), note: true }),
+  nudge_answer: () => ({ text: tt("nudge_answer"), emote: "tilt", opts: [{ label: tt("o_read_it"), icon: "shield", kind: "primary", go: () => actions.thread("p1") }, O.later()] }),
+  nudge_guide: () => ({ text: tt("nudge_guide"), emote: "wave", opts: [{ label: tt("o_show"), icon: "shield", kind: "primary", go: () => go("guide") }, O.later()] }),
+  nudge_circle: () => ({ text: tt("nudge_circle"), emote: "tilt", opts: [{ label: tt("o_peek"), icon: "circles", kind: "primary", go: () => actions.circle("c1") }, O.later()] }),
+  amb_season: () => ({ text: tt("amb_" + season()), emote: "sniff" }),
+  amb_night: () => ({ text: tt("amb_night"), emote: "think" }),
+  amb_rain: () => ({ text: tt("amb_rain"), emote: "tilt", opts: [O.sit(), O.later()] }),
+  amb_weekend: () => ({ text: tt("amb_weekend"), emote: "tilt" }),
+  amb_morning: () => ({ text: tt("amb_morning"), emote: "wave", opts: [{ label: tt("o_slept_ok"), go: () => talkTo("glad") }, { label: tt("o_slept_bad"), go: () => talkTo("rough_night") }] }),
+  glad: () => ({ text: tt("glad"), emote: "nod" }),
+  rough_night: () => ({ text: tt("rough_night"), emote: "comfort", opts: [O.breathe(), O.thanks()] }),
+};
+/* Nodes the Companion may move on from by itself when the Member is quiet. Hard-day
+   and exercise nodes are never interrupted. */
+const RESTFUL = ["bye", "glad", "proud", "posted", "r_good", "r_great", "dance", "play", "after_breathe", "amb_season", "amb_night", "amb_weekend", "hello_c"];
+function pickAmbient() {
+  const seen = S.talk.seen, h = hour();
+  const next = [
+    ["nudge_answer", !S.seen.p1],
+    ["nudge_guide", !S.match && licensedHere() && S.optMatch],
+    ["nudge_circle", S.focuses.includes("parenting")],
+    ["amb_morning", h >= 5 && h < 11],
+    ["amb_night", h < 6 || h >= 20],
+    ["amb_rain", S.checkedIn && S.mood === "sad"],
+    ["amb_weekend", [0, 6].includes(new Date().getDay())],
+    ["amb_season", true],
+  ].find(([id, ok]) => ok && !seen[id]);
+  if (!next) return null;
+  seen[next[0]] = true;
+  return next[0];
+}
+function talkBox(where) {
+  if (!S.talk.node) Object.assign(S.talk, { node: talkStart(), at: Date.now() });
+  let id = S.talk.node;
+  if (where === "companion" && !S.checkedIn && ["hello", "hello_first"].includes(id)) id = "hello_c";
+  S.talk.shown = id;
+  let n = TALK[id] ? TALK[id]() : TALK.bye();
+  // the check-in panel sits right below on the Companion screen, so mood chips would say it twice
+  if (where === "companion" && id === "back") n = { ...n, opts: null };
+  const key = id + "|" + S.lang;
+  const typed = S.talk.typed === key || REDUCED_UI.matches;
+  return `<div class="talk" role="group" aria-label="${esc(tt("talk_label"))}"><div class="talk-box">
+      <span class="talk-name">${icon("paw")}${esc(S.petName)}</span>
+      <p class="talk-text" aria-live="polite"><span class="sr">${esc(n.text)}</span><span class="talk-typed" aria-hidden="true" data-key="${key}" data-full="${esc(n.text)}">${typed ? esc(n.text) : ""}</span>${typed ? "" : '<span class="talk-dots" aria-hidden="true"><i></i><i></i><i></i></span>'}</p>
+      ${n.opts && n.opts.length ? `<div class="talk-opts ${typed ? "" : "wait"}">${n.opts.map((o, i) => `<button class="talk-opt ${o.kind || ""}" data-a="talk" data-v="${i}" style="--i:${i}">${o.face ? moodFace(o.face, 26) : o.icon ? icon(o.icon) : ""}<span>${esc(o.label)}</span></button>`).join("")}</div>` : ""}
+      ${n.note ? `<p class="talk-note">${icon("shield")}<span>${tt("note_companion")}</span></p>` : ""}
+    </div></div>`;
+}
+function runTypewriter() {
+  const el = document.querySelector(".talk-typed");
+  if (!el) return;
+  const key = el.dataset.key;
+  if (S.talk.typed === key) return;
+  S.talk.typed = key;
+  const full = el.dataset.full, cjk = /[㐀-鿿]/.test(full), step = cjk ? 1 : 2;
+  if (world) world.talk(Math.min(4.5, 0.8 + full.length / (cjk ? 14 : 32)));
+  let i = 0;
+  setTimeout(function tick() {
+    if (!el.isConnected) return;
+    el.parentNode.querySelector(".talk-dots")?.remove();
+    i += step; el.textContent = full.slice(0, i);
+    if (i < full.length) setTimeout(tick, 28);
+    else el.closest(".talk-box")?.querySelector(".talk-opts")?.classList.remove("wait");
+  }, 480);
+}
+let quipAt = 0, quipN = 0;
+function quip(kind, vars = {}) {
+  const stage = document.querySelector("[data-stage]");
+  if (!stage || !world || Date.now() - quipAt < 1000) return;
+  quipAt = Date.now();
+  const list = L(QUIPS[kind]);
+  let text = list[quipN++ % list.length];
+  for (const v in vars) text = text.split(`{${v}}`).join(vars[v]);
+  const p = world.headScreen();
+  stage.querySelector(".quip")?.remove();
+  stage.insertAdjacentHTML("beforeend", `<div class="quip" role="status" style="left:${Math.round(p.x)}px;top:${Math.round(p.y - 16)}px">${esc(text)}</div>`);
+  setTimeout(() => stage.querySelector(".quip")?.remove(), 1900);
+  world.talk(0.8);
+}
+/* When the Member is quiet for a while, the Companion brings up something real:
+   a new answer, a Circle, the season, the night sky. A few times per visit at most. */
+setInterval(() => {
+  if (!["home", "companion"].includes(S.screen) || S.crisis || S.breathing || S.away) return;
+  if (!RESTFUL.includes(S.talk.shown)) return;
+  if (Date.now() - lastInput < 14000 || Date.now() - S.talk.at < 14000 || S.talk.ambient >= 4) return;
+  const a = document.activeElement;
+  if (a && ["INPUT", "TEXTAREA"].includes(a.tagName)) return;
+  const next = pickAmbient();
+  if (next) { S.talk.ambient++; talkTo(next, { ambient: true }); }
+}, 2000);
+["pointerdown", "keydown"].forEach(ev => document.addEventListener(ev, () => (lastInput = Date.now()), true));
+
 /* ---------- onboarding ---------- */
 function onboarding() {
   const st = S.step;
@@ -239,15 +421,11 @@ function onboarding() {
 /* ---------- screens ---------- */
 function greeting() { const h = hour(); return t(h < 12 && h >= 4 ? "greet_morning" : h < 18 && h >= 12 ? "greet_afternoon" : "greet_evening", { name: "Lily" }); }
 function home() {
-  const m = MOODS.find(x => x.id === S.mood);
-  const status = S.checkedIn ? t("feeling", { mood: L(m) }) : t("napping", { pet: esc(S.petName) });
   return `${hdrMain()}<div class="scroll">
-    <section class="stage home" data-stage="home">
-      <div class="stage-copy ${skyDark() ? "dark" : ""}"><h1>${greeting()}</h1><p>${status}</p></div>
-      <div class="stage-cta">${S.checkedIn ? "" : `<button class="btn sun" data-a="go" data-v="companion">${icon("check")}${t("check_in")}</button>`}</div>
-      ${!S.petHinted && S.checkedIn ? `<div class="hint">${icon("touch")}${t("pet_hint", { pet: esc(S.petName) })}</div>` : ""}
-    </section>
+    <h1 class="sr">${greeting()}</h1>
+    <section class="stage home" data-stage="home"></section>
     <div class="sheet-top">
+      ${talkBox("home")}
       ${guideCard()}
       <button class="askfield" data-a="go" data-v="compose">${icon("ask")}${t("ask_placeholder")}</button>
       <h2 class="section-h">${t("community")}<button class="more" data-a="go" data-v="learn">${icon("learn")}${t("learn")}</button></h2>
@@ -316,7 +494,6 @@ function dm() {
 }
 function companionScreen() {
   const m = MOODS.find(x => x.id === S.mood);
-  const hard = S.checkedIn && HARD_MOODS.includes(S.mood);
   const sp = L(species(S.species));
   const checkin = S.checkedIn
     ? `<div class="panel tray in" style="display:flex;gap:14px;align-items:center">${moodFace(m, 48)}<div style="flex:1"><b style="color:var(--forest);font:600 var(--fs-m)/1.3 var(--display)">${t("checked_in")}</b><div class="muted">${L(m)}${S.tags.length ? " · " + S.tags.map(esc).join(", ") : ""}</div></div></div>`
@@ -330,12 +507,11 @@ function companionScreen() {
   const top = isRoot();
   return `${top ? hdrRoot(t("companion")) : hdrSub(t("companion"))}<div class="scroll" id="compScroll">
     <section class="stage companion" data-stage="companion">
-      <div class="stage-copy ${skyDark() ? "dark" : ""}"><h1>${esc(S.petName)}</h1><p>${S.checkedIn ? sp : `${sp} · ${t("napping", { pet: esc(S.petName) })}`}</p></div>
+      <div class="stage-copy ${skyDark() ? "dark" : ""}"><h1>${esc(S.petName)}</h1><p>${sp}</p></div>
       ${S.breathing ? `<div class="breathe"><div class="ring"></div><div class="say"><span>${t("breathe_in")}</span><span>${t("breathe_out")}</span></div><button class="btn quiet" data-a="breathe">${t("done")}</button></div>` : ""}
-      ${!S.petHinted && !S.breathing ? `<div class="hint">${icon("touch")}${t("pet_hint", { pet: esc(S.petName) })}</div>` : ""}
     </section>
     <div class="sheet-top">
-      ${hard ? `<div class="comfort">${icon("heart")}<p>${t("comfort", { pet: esc(S.petName) })}</p></div><div style="padding:0 var(--gut) var(--gap)"><button class="btn primary block" data-a="breathe">${icon("wind")}${t("breathe", { pet: esc(S.petName) })}</button></div>` : ""}
+      ${S.breathing ? "" : talkBox("companion")}
       ${checkin}
       <h2 class="section-h">${t("badges")}</h2>
       <div class="badges">${BADGES.map(b => { const on = (b.id === "first_checkin" && S.checkedIn) || (b.id === "first_post" && S.posted);
@@ -433,6 +609,8 @@ function render(nav = false) {
   if (nsc) { nsc.style.scrollBehavior = "auto"; nsc.scrollTop = S.screen === "dm" ? nsc.scrollHeight : keep; nsc.style.scrollBehavior = ""; }
   if (active) { const el = document.querySelector(`[data-model="${active}"]`); if (el) { el.focus(); const v = el.value; el.value = ""; el.value = v; } }
   lastScreen = S.screen; S.enter = null;
+  runTypewriter();
+  if (S.screen === "onboard" && S.step === 0 && world && !S.saidHi) { S.saidHi = true; setTimeout(() => { world.emote("wave"); quip("hi"); }, 1400); }
   if (S.toast) { const id = S.toast.id; setTimeout(() => { if (S.toast && S.toast.id === id) { S.toast = null; $(".toast")?.remove(); } }, 2800); }
   renderNotes();
 }
@@ -457,7 +635,8 @@ function renderNotes() {
   const key = S.screen === "onboard" ? "onboard" : S.screen;
   n.textContent = S.screen === "onboard" ? (S.step ? `Onboarding · step ${S.step} of 4` : "Welcome") : key[0].toUpperCase() + key.slice(1);
   $("#screenNotes").innerHTML = (SCREEN_NOTES[key] || SCREEN_NOTES.home).map(x => `<li>${esc(x)}</li>`).join("");
-  $("#times").innerHTML = [[null, "Live"], [7, "Morning"], [13, "Day"], [18.6, "Dusk"], [22, "Night"]].map(([h, l]) => `<button data-time="${h ?? ""}" class="${S.timeOverride === h ? "on" : ""}">${l}</button>`).join("");
+  $("#times").innerHTML = [[null, "Live"], [7, "Morning"], [13, "Day"], [18.6, "Dusk"], [22, "Night"], [23.6, "Late night"]].map(([h, l]) => `<button data-time="${h ?? ""}" class="${S.timeOverride === h ? "on" : ""}">${l}</button>`).join("")
+    + `<button data-away class="${S.away ? "on" : ""}">A day away</button>`;
   $("#stateDump").textContent = JSON.stringify({ screen: S.screen, lang: S.lang, location: S.state, counselorServices: licensedHere() ? "available" : "gated", matchingConsent: S.optMatch,
     focusAreas: S.focuses, mainFocus: S.mainFocus, riverSeeds: S.seeds, earnedToday: `${S.earnedToday}/25 cap`, checkedIn: S.checkedIn, mood: S.mood, companion: `${S.petName} (${S.species})`, wearing: S.wear,
     guide: S.match ? counselor(S.match).name : null, heldItems: S.posts.filter(p => p.held).length + S.posts.reduce((a, p) => a + p.replies.filter(r => r.held).length, 0) }, null, 2);
@@ -482,7 +661,7 @@ const actions = {
   },
   mainFocus(v) { S.mainFocus = v; S.draftFocus = v; render(); },
   state(v) { S.state = v; if (S.match && !counselor(S.match).states.includes(v)) S.match = null; render(); },
-  species(v) { if (S.species === v) return; S.species = v; render(); },
+  species(v) { if (S.species === v) return; S.species = v; render(); setTimeout(() => { if (world) world.emote("wave"); quip("species", { species: L(species(v)) }); }, 450); },
   tab(v) { S.stack = []; S.screen = v; S.breathing = false; render(true); },
   go(v) { go(v); },
   back() { back(); },
@@ -501,8 +680,8 @@ const actions = {
     const risky = isRisky(text);
     const p = { id: "u" + Date.now(), anon: S.persona === "anon", author: "Lily Z.", focus: S.draftFocus, ago: null, orig: S.lang === "en" ? "en" : "zh", text, answer: null, replies: [], helpful: 0, mine: true, held: risky };
     S.posts.unshift(p); S.draft = ""; S.posted = true; S.stack = []; S.screen = "home"; S.enter = p.id;
-    if (risky) S.crisis = "held";
-    else { const got = earn(5); toast(got ? `${t("posted")} · ${t("seeds_earned", { n: got })}` : t("posted")); }
+    if (risky) { S.crisis = "held"; talkTo("after_hold", { silent: true }); }
+    else { const got = earn(5); toast(got ? `${t("posted")} · ${t("seeds_earned", { n: got })}` : t("posted")); talkTo("posted", { silent: true }); }
     render(true);
   },
   reply() {
@@ -522,12 +701,13 @@ const actions = {
     if (!S.dm.some(m => m.type === "book")) setTimeout(() => { S.dm.push({ me: false, key: "dm_suggest" }, { type: "book" }); if (S.screen === "dm") render(); }, 1100);
   },
   booked() { toast(t("opened_site"), "external"); setTimeout(render, 50); },
-  mood(v) { S.mood = v; if (world) world.stir(); render(); },
+  mood(v) { S.mood = v; if (world) world.emote("tilt"); render(); },
   tag(v) { S.tags = S.tags.includes(v) ? S.tags.filter(x => x !== v) : [...S.tags, v]; render(); },
   checkin() {
     if (!S.mood) return;
-    S.checkedIn = true; const got = earn(5);
+    S.checkedIn = true; S.petHinted = true; const got = earn(5);
     toast(t("seeds_earned", { n: got || 0 }));
+    talkTo("r_" + S.mood, { silent: true });
     render();
     if (world) world.celebrate(HARD_MOODS.includes(S.mood));
     document.querySelector("#compScroll")?.scrollTo({ top: 0, behavior: "smooth" });
@@ -535,6 +715,7 @@ const actions = {
   breathe() {
     S.breathing = !S.breathing;
     if (world) world.breathe(S.breathing);
+    if (!S.breathing) talkTo("after_breathe", { silent: true });
     render();
     if (S.breathing) document.querySelector("#compScroll")?.scrollTo({ top: 0, behavior: "smooth" });
   },
@@ -552,12 +733,21 @@ const actions = {
     render(); if (world) world.anim.pop = world.time;
   },
   toast(v) { toast(t(v), v === "waitlisted" ? "check" : "learn"); render(); },
-  replay() { Object.assign(S, { screen: "onboard", step: 0, stack: [] }); render(true); },
+  replay() { Object.assign(S, { screen: "onboard", step: 0, stack: [], saidHi: false }); render(true); },
+  talk(i) {
+    const n = TALK[S.talk.shown] && TALK[S.talk.shown]();
+    const o = n && n.opts && n.opts[+i];
+    if (!o) return;
+    const before = S.screen;
+    o.go();
+    if (S.screen !== before && S.talk.node === S.talk.shown) Object.assign(S.talk, { node: "bye", typed: null });
+  },
 };
 
 document.addEventListener("click", e => {
   const tb = e.target.closest("[data-time]");
-  if (tb) { S.timeOverride = tb.dataset.time === "" ? null : +tb.dataset.time; render(); return; }
+  if (tb) { S.timeOverride = tb.dataset.time === "" ? null : +tb.dataset.time; if (!S.checkedIn && !S.away) talkTo(talkStart(), { silent: true }); render(); return; }
+  if (e.target.closest("[data-away]")) { S.away = !S.away; if (S.away) S.checkedIn = false; talkTo(talkStart(), { silent: true }); render(); return; }
   const el = e.target.closest("[data-a]");
   if (!el || !el.closest("#app")) return;
   const stop = e.target.closest("[data-stop]");
@@ -613,6 +803,8 @@ if (params.get("thread")) S.thread = params.get("thread");
 if (params.get("draft")) S.draft = params.get("draft");
 if (params.get("time")) S.timeOverride = +params.get("time");
 if (params.get("hinted") === "1") S.petHinted = true;
+if (params.get("away") === "1") S.away = true;
+if (params.get("talk")) S.talk.node = params.get("talk");
 render(true);
 window.addEventListener("companion-ready", initWorld);
 initWorld();

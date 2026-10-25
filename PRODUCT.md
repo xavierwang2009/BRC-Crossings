@@ -35,7 +35,8 @@ A clinic-run, bilingual (English / 繁 / 简) peer community where licensed Coun
 - Anonymous posting: no one, including Counselors, can see the author; clinic safety officers can in an emergency.
 - Risky posts are held for review and crisis help is shown immediately.
 - RiverSeeds are earned (daily cap), cannot be bought or cashed out, balances are private, no leaderboards.
-- The Companion naps if a day is skipped; it never gets sick.
+- The Companion naps only if a day is skipped, and wakes glad to see the Member; it never gets sick and never guilts.
+- The Companion talks, in scripted lines reviewed for all three languages. It greets the Member, asks how they are (a one-tap check-in), answers each mood with comfort and small activities (guided breathing, 5-4-3-2-1 grounding, sitting together), and points to real things: a new Counselor answer, a Circle, the Counselor guide, crisis help. It never gives clinical advice, and on hard days it says it is a companion, not a counselor.
 - Chinese posts convert between Traditional and Simplified automatically; machine translation is labelled.
 - Open: the Chinese-language crisis line partner is not confirmed yet.
 

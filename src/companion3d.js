@@ -175,6 +175,13 @@ function addFace(head, o) {
     Object.assign(face.mouths, { smile, frown, flat, open });
     for (const k in face.mouths) { face.mouths[k].visible = false; head.add(face.mouths[k]); }
   }
+  face.brows = [];
+  const browGeo = new THREE.CapsuleGeometry(o.eyeR * 0.19, o.eyeR * 1.05, 4, 8);
+  for (const s of [-1, 1]) {
+    const b = mesh(browGeo, ink, s * o.eye[0] * 1.05, o.eye[1] + o.eyeR * 2.75, o.eye[2] - o.eyeR * 0.55, false);
+    b.rotation.set(0, s * 0.28, Math.PI / 2); b.visible = false; b.userData.y = b.position.y; b.userData.s = s;
+    head.add(b); face.brows.push(b);
+  }
   return face;
 }
 
@@ -283,6 +290,7 @@ function buildRig(species) {
     rig.face = addFace(head, { eye: [0.13, 0.05, 0.3], eyeR: 0.048, mouth: [0, -0.17, 0.36], blush: [0.25, -0.07, 0.22] });
   }
   rig.baseHead = head.position.clone();
+  rig.arms.forEach(a => { a.userData.basePos = a.position.clone(); a.userData.baseRot = a.rotation.clone(); });
   root.traverse(o => { if (o.isMesh) o.userData.pet = true; });
   return rig;
 }
@@ -379,6 +387,8 @@ export class CompanionWorld {
     this.look = { yaw: 0, pitch: 0 };
     this.weather = { ...WEATHER.none };
     this.blinkRand = rng(7);
+    this.emo = null; this.talkUntil = -10; this.lastInteract = 0; this.sitting = false; this.hopH = 0.32;
+    this.petPos = PET_POS.clone(); this.walk = { state: 'idle', target: null, next: 7, spot: 0, until: 0 };
 
     const scene = new THREE.Scene();
     this.scene = scene;
@@ -647,7 +657,7 @@ export class CompanionWorld {
     if (this.rig && this.rig.species === species) return;
     if (this.rig) this.island.remove(this.rig.root);
     this.rig = buildRig(species);
-    this.rig.root.position.copy(PET_POS); this.rig.root.rotation.y = 0.18;
+    this.rig.root.position.copy(this.petPos); this.rig.root.rotation.y = 0.18;
     this.island.add(this.rig.root);
     this.accessories = {};
     this.syncWear(true);
@@ -680,6 +690,61 @@ export class CompanionWorld {
     else { this.anim.hop = this.time; this.spawn('spark', head, 6); this.spawn('heart', head, 2); this.anim.happy = 2; }
   }
   breathe(on) { this.anim.breath = on; this.anim.breathT = this.time; }
+  /* Gestures the app can ask for; each plays once on the shared motion clock. */
+  emote(name, dur) {
+    const D = { wave: 1.6, nod: 0.9, tilt: 1.8, jump: 0.9, cheer: 1.2, dance: 1.4, comfort: 2.6, think: 1.6, surprise: 0.9, sniff: 1.8, yawn: 1.3 };
+    this.emo = { name, t0: this.time, dur: dur || D[name] || 1.2 };
+    this.lastInteract = this.time;
+    if (name === 'jump' || name === 'cheer') { this.hopH = 0.5; this.anim.hop = this.time; }
+    if (name === 'surprise') { this.hopH = 0.16; this.anim.hop = this.time; }
+    if (name === 'dance') { this.hopH = 0.3; this.anim.hop = this.time; this.spawn('spark', this.headWorld(), 5); }
+    if (name === 'cheer') this.spawn('spark', this.headWorld(), 6);
+    if (name === 'comfort') this.spawn('heart', this.headWorld(), 2);
+  }
+  talk(seconds) { this.talkUntil = this.time + seconds; this.lastInteract = this.time; }
+  sit(on) { this.sitting = on; this.lastInteract = this.time; }
+  headScreen() {
+    const v = this.headWorld().project(this.camera), r = this.canvas.getBoundingClientRect();
+    return { x: (v.x + 1) / 2 * r.width, y: (1 - v.y) / 2 * r.height };
+  }
+  /* Idle life: wander to a spot, sniff a flower or wave, come home; sit close when asked. */
+  updateWalk(dt) {
+    const w = this.walk, t = this.time, r = this.rig, p = this.petPos;
+    const awake = !this.state.asleep || t - this.anim.wake < 7;
+    const free = awake && !this.anim.breath && !this.sitting && !REDUCED.matches && !this.pointer.down
+      && t > this.talkUntil + 1.5 && (!this.emo || this.emo.idle || t - this.emo.t0 > this.emo.dur) && t - this.lastInteract > 8
+      && ['home', 'companion', 'welcome'].includes(this.mode);
+    const SPOTS = [[-1.2, 0.45, 'sniff'], [0.6, 0.05, 'think'], [-0.45, -0.3, 'sniff'], [0.3, 0.5, 'wave']];
+    if (this.sitting && w.state !== 'sit') w.state = 'go-sit';
+    if (!this.sitting && (w.state === 'sit' || w.state === 'go-sit')) w.state = 'back';
+    if (w.state === 'idle' && free && t > w.next) {
+      const sp = SPOTS[w.spot++ % SPOTS.length];
+      w.target = new THREE.Vector3(PET_POS.x + sp[0], 0, PET_POS.z + sp[1]); w.act = sp[2]; w.state = 'out';
+    }
+    if ((w.state === 'out' || w.state === 'pause') && !free) w.state = 'back';
+    let tx = null, tz = null;
+    if (w.state === 'out') { tx = w.target.x; tz = w.target.z; }
+    else if (w.state === 'back') { tx = PET_POS.x; tz = PET_POS.z; }
+    else if (w.state === 'go-sit') { tx = PET_POS.x + 0.2; tz = PET_POS.z + 0.6; }
+    let heading = null;
+    if (tx !== null) {
+      const dx = tx - p.x, dz = tz - p.z, d = Math.hypot(dx, dz);
+      if (d < 0.03) {
+        if (w.state === 'out') { w.state = 'pause'; w.until = t + 2.8; this.emo = { name: w.act, t0: t, dur: w.act === 'wave' ? 1.6 : 1.8, idle: true }; }
+        else if (w.state === 'go-sit') w.state = 'sit';
+        else { w.state = 'idle'; w.next = t + 11 + (w.spot % 3) * 4; }
+      } else {
+        const step = Math.min(d, 0.62 * dt); p.x += dx / d * step; p.z += dz / d * step; heading = Math.atan2(dx, dz);
+      }
+    }
+    if (w.state === 'pause' && t > w.until) w.state = 'back';
+    this.walking = heading !== null;
+    const want = heading !== null ? heading : 0.18;
+    const cur = r.root.rotation.y, diff = ((want - cur + Math.PI) % TAU + TAU) % TAU - Math.PI;
+    r.root.rotation.y = cur + diff * (1 - Math.exp(-8 * dt));
+    r.root.position.x = p.x; r.root.position.z = p.z;
+    this.contact.position.x = p.x; this.contact.position.z = p.z;
+  }
 
   /* ---------- mounting ---------- */
   attach(el, mode = 'home') {
@@ -840,9 +905,11 @@ export class CompanionWorld {
     let y = 0, sx = 1, sy = 1;
     const hopT = (t - a.hop) / MOTION;
     if (hopT >= 0 && hopT < 1.6) {
-      if (hopT < 1) { y = still ? 0 : Math.sin(hopT * Math.PI) * 0.32; sy = 1 + Math.sin(hopT * Math.PI) * 0.08; sx = 1 - Math.sin(hopT * Math.PI) * 0.04; }
+      if (hopT < 1) { y = still ? 0 : Math.sin(hopT * Math.PI) * this.hopH; sy = 1 + Math.sin(hopT * Math.PI) * 0.08; sx = 1 - Math.sin(hopT * Math.PI) * 0.04; }
       else { const k = (hopT - 1) / 0.6; const s = 1 - springOut(k); sy = 1 - 0.12 * s * (1 - k); sx = 1 + 0.08 * s * (1 - k); }
     }
+    if (hopT > 1.6) this.hopH = 0.32;
+    if (this.walking && !still) { const st = Math.abs(Math.sin(t * 11)); y += st * 0.06; sy *= 1 - (1 - st) * 0.04; }
     a.hug = damp(a.hug, a.hugOn ? 1 : 0, a.hugOn ? 9 : 6, dt);
     sx *= 1 + a.hug * 0.1; sy *= 1 - a.hug * 0.1;
     const popT = (t - a.pop) / MOTION;
@@ -869,7 +936,7 @@ export class CompanionWorld {
     if (mood === 'low' || mood === 'sad') pitch += 0.12;
     const k = still ? 30 : 7;
     this.look.yaw = damp(this.look.yaw, yaw, k, dt); this.look.pitch = damp(this.look.pitch, pitch, k, dt);
-    r.head.rotation.y = this.look.yaw - r.root.rotation.y * 0.6; r.head.rotation.x = this.look.pitch;
+    r.head.rotation.y = this.walking ? 0 : this.look.yaw - r.root.rotation.y * 0.6; r.head.rotation.x = this.look.pitch;
     r.head.rotation.z = asleep ? 0.12 : (a.stroke > 0.05 ? a.strokeLean * 0.15 * a.stroke : damp(r.head.rotation.z, mood === 'okay' ? 0.04 : 0, 4, dt));
     // ears + tail
     const ear = Math.sin(t * 0.7) > 0.97 && !still ? Math.sin(t * 40) * 0.25 : 0;
@@ -886,11 +953,27 @@ export class CompanionWorld {
       else if (r.species === 'rabbit') r.tail.position.x = Math.sin(t * wag * 1.5) * 0.02;
     }
     // arms: hug lifts arms, heron flaps on hop
+    const e = this.emo, et = e ? (t - e.t0) / e.dur : 9, eOn = !!e && et < 1;
+    const waving = eOn && e.name === 'wave' ? Math.sin(Math.PI * Math.min(1, et * 1.25)) : 0;
+    const osc = Math.sin((t - (e ? e.t0 : 0)) * 13);
     r.arms.forEach((arm, i) => {
-      const s = i ? 1 : -1;
-      if (r.species === 'bird') arm.rotation.z = s * (a.hug * 0.6 + (hopT >= 0 && hopT < 1 ? Math.abs(Math.sin(hopT * Math.PI * 3)) * 0.9 : 0));
-      else if (r.species === 'otter') arm.rotation.z = s * (0.55 + a.hug * 0.5);
+      const s = i ? 1 : -1, wv = i === 1 ? waving : 0, bp = arm.userData.basePos, br = arm.userData.baseRot;
+      if (r.species === 'bird') arm.rotation.z = s * (a.hug * 0.6 + (hopT >= 0 && hopT < 1 ? Math.abs(Math.sin(hopT * Math.PI * 3)) * 0.9 : 0) + wv * (1.1 + osc * 0.35));
+      else if (r.species === 'otter') { arm.rotation.x = br.x - wv * 1.5; arm.rotation.z = s * (0.55 + a.hug * 0.5) + wv * osc * 0.4; }
+      else if (bp) arm.position.set(bp.x + s * wv * 0.1 + wv * osc * 0.04, bp.y + wv * (r.species === 'turtle' ? 0.22 : 0.42), bp.z + wv * 0.06);
     });
+    // gestures that move the head and body
+    if (eOn) {
+      if (e.name === 'nod') r.head.rotation.x += Math.sin(et * Math.PI * 4) * 0.16 * (1 - et);
+      if (e.name === 'tilt') r.head.rotation.z += 0.28 * Math.sin(Math.PI * et);
+      if (e.name === 'think') { r.head.rotation.x -= 0.22 * Math.sin(Math.PI * et); r.head.rotation.y += 0.35 * Math.sin(Math.PI * et); }
+      if (e.name === 'sniff') { r.head.rotation.x += 0.38 * Math.sin(Math.PI * et); r.head.rotation.y += Math.sin(t * 22) * 0.07; }
+      if (e.name === 'yawn') r.head.rotation.x -= 0.2 * Math.sin(Math.PI * et);
+      if (e.name === 'comfort') { r.head.rotation.z += 0.16 * Math.sin(Math.PI * Math.min(1, et * 1.4)); r.torso.rotation.x = 0.12 * Math.sin(Math.PI * et); }
+      if (e.name === 'dance') { r.torso.rotation.y = TAU * smooth(et); if (et > 0.5 && !e.hop2) { e.hop2 = true; a.hop = t; } }
+    } else { r.torso.rotation.y = 0; r.torso.rotation.x = damp(r.torso.rotation.x, 0, 6, dt); }
+    if (t < this.talkUntil && !asleep) r.head.rotation.x += Math.sin(t * 9) * 0.025;
+    if (this.sitting) r.head.rotation.z += 0.1;
     // expression
     a.happy = Math.max(0, a.happy - dt);
     const sinceWake = t - a.wake;
@@ -909,12 +992,27 @@ export class CompanionWorld {
     if (m === 'tired' && Math.sin(t * 0.3) > 0.985) mouth = 'open';
     if (a.happy > 0 || a.stroke > 0.3 || a.hug > 0.4) { eyes = 'happy'; mouth = 'smile'; blush = 0.8; }
     if (a.breath) { eyes = ((t - a.breathT) % 8) < 4 ? 'happy' : 'closed'; mouth = 'smile'; blush = 0.3; }
-    if (asleep) { eyes = 'closed'; mouth = 'flat'; blush = 0.25; }
+    let brow = null, eyeScale = 1;
+    if (m === 'sad' || m === 'low') brow = { tilt: 0.38, raise: 0 };
+    else if (m === 'anxious') brow = { tilt: 0.28, raise: 0.006 };
+    else if (m === 'frustrated') brow = { tilt: -0.32, raise: -0.004 };
+    if (eOn) {
+      if (e.name === 'surprise') { eyes = 'open'; lid = 1; eyeScale = 1.3; mouth = 'open'; brow = { tilt: 0, raise: 0.03 }; }
+      else if (e.name === 'comfort') { eyes = 'happy'; mouth = 'smile'; blush = 0.85; brow = { tilt: 0.2, raise: 0.01 }; }
+      else if (e.name === 'dance' || e.name === 'cheer' || e.name === 'jump') { eyes = 'happy'; mouth = 'open'; blush = 0.8; brow = null; }
+      else if (e.name === 'wave' || e.name === 'nod') { if (mouth !== 'frown') mouth = 'smile'; blush = Math.max(blush, 0.45); }
+      else if (e.name === 'yawn') { mouth = 'open'; lid = 0.4; }
+      else if (e.name === 'think') brow = { tilt: -0.1, raise: 0.015 };
+    }
+    if (this.sitting) { eyes = Math.sin(t * 0.5) > 0.2 ? 'happy' : 'open'; blush = 0.6; if (mouth === 'frown') mouth = 'flat'; }
+    if (t < this.talkUntil && !asleep && r.face.mouths.open) mouth = (Math.floor(t * 8.5) % 2) ? 'open' : (mouth === 'open' ? 'smile' : mouth === 'frown' ? 'flat' : mouth);
+    if (asleep) { eyes = 'closed'; mouth = 'flat'; blush = 0.25; brow = null; }
     // blink
     if (t > a.blinkAt) { a.blink = 0.13; a.blinkAt = t + 2.4 + this.blinkRand() * 3.2; }
     a.blink = Math.max(0, a.blink - dt);
     const f = r.face;
-    f.open.forEach(e => { e.visible = eyes === 'open'; e.scale.y = 1.18 * lid * (a.blink > 0 ? 0.12 : 1); });
+    f.open.forEach(o => { o.visible = eyes === 'open'; o.scale.y = 1.18 * lid * eyeScale * (a.blink > 0 ? 0.12 : 1); o.scale.x = eyeScale; });
+    f.brows.forEach(b => { b.visible = !!brow; if (brow) { b.position.y = b.userData.y + brow.raise; b.rotation.z = Math.PI / 2 - b.userData.s * brow.tilt; } });
     f.closed.forEach(e => (e.visible = eyes === 'closed'));
     f.happy.forEach(e => (e.visible = eyes === 'happy'));
     f.blush.forEach(b => (b.material.opacity = damp(b.material.opacity, blush * 0.75, 5, dt)));
@@ -961,6 +1059,7 @@ export class CompanionWorld {
     c.addEventListener('pointerdown', e => {
       const p = ndc(e); const onPet = hitsPet(p);
       this.pointer.x = p.x; this.pointer.y = p.y; this.pointer.lastMove = this.time;
+      this.lastInteract = this.time;
       this.pointer.down = { cx: e.clientX, cy: e.clientY, lx: e.clientX, ly: e.clientY, moved: 0, lastHeart: 0, at: performance.now(), onPet };
       if (onPet) {
         c.style.cursor = 'grabbing';
@@ -986,6 +1085,7 @@ export class CompanionWorld {
   wakeIfAsleep(fromUser = true) { if (this.state.asleep && this.time - this.anim.wake > 7) { this.anim.wake = this.time; this.anim.yawn = this.time + 0.2; if (fromUser) this.emit('wake'); return true; } return false; }
   stir() { return this.wakeIfAsleep(false); }
   tap() {
+    this.lastInteract = this.time;
     navigator.vibrate?.(10);
     if (this.wakeIfAsleep()) return;
     this.anim.hop = this.time; this.anim.happy = 0.9;
@@ -1007,6 +1107,7 @@ export class CompanionWorld {
     this.waterU.uT.value = REDUCED.matches ? 0 : this.time;
     this.updateWeather(dt);
     this.updateLighting(dt);
+    this.updateWalk(dt);
     this.updatePet(dt);
     this.updateParticles(dt);
     const k = 1 - Math.exp(-4.5 * dt);
