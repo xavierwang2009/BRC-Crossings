@@ -24,7 +24,7 @@ A clinic-run, bilingual (English / 繁 / 简) peer community where licensed Coun
 
 ## Operating Context
 
-- Phase 1 screens: onboarding (age and consent, language, Focus Areas with a main one, location, Companion), Feed, Ask/compose (Named or Anonymous per post), thread, Counselor guide matching and DM with a booking card, Companion check-in, RiverSeeds shop and badges, Circles, Learn, Me, and the crisis sheet.
+- Phase 1 screens: onboarding (age and consent, name and how the community sees it, Focus Areas with a main one, location, Companion), Feed, Ask/compose (Named or Anonymous per post), thread, Counselor guide matching and DM with a booking card, Companion check-in, RiverSeeds shop and badges, Circles, Learn, Me, and the crisis sheet.
 - Booking happens on bridgerivercounseling.com; DMs are never sent to clinic records.
 - Phase 2 (not built): Circle Stewards and Counselor drop-ins.
 
@@ -33,6 +33,7 @@ A clinic-run, bilingual (English / 繁 / 简) peer community where licensed Coun
 - Not therapy and not an emergency service; this is stated wherever Counselors speak.
 - Counselor 1:1 services are gated by the Member's stated location and the Counselor's state licenses (TX, WA, AR, VA in the sample). Out-of-state and international Members get the community plus a referral list.
 - Anonymous posting: no one, including Counselors, can see the author; clinic safety officers can in an emergency.
+- Names are optional and private by default. The Member's name is used only by their Companion and, in private messages, their Counselor guide. In the community they choose to appear as completely anonymous (the default), initials only ("L.Z.", or "張○○" for Chinese names) or their full name, and can change this anytime in Me. Whatever they choose, they can still post any single post anonymously.
 - Risky posts are held for review and crisis help is shown immediately.
 - RiverSeeds are earned (daily cap), cannot be bought or cashed out, balances are private, no leaderboards.
 - The Companion naps only if a day is skipped, and wakes glad to see the Member; it never gets sick and never guilts.

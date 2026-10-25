@@ -270,6 +270,9 @@ The stone arch bridge in the diorama echoes the clinic logo. It is turned diagon
 - **Header:** forest, at least 60px, with logo mark (sun logo on a forest-2 tile), wordmark with Chinese name, RiverSeeds pill (translucent on-forest), and the berry Help pill at top right.
 - **Tab bar:** card-white with an upward soft shadow and five slots. Inactive tabs are ink-3; the active tab is forest with its icon scaled to 1.08 and a 5px berry dot. Ask is a 56px forest disc with a sun icon, raised 31px and ringed by 5px of card-white.
 
+### Name Choice
+This is a radio group of three 64px option rows on card ground with a 1.5px line inset. Each row has an avatar preview (a mask for anonymous, white initials on the Member's hue otherwise), a title with a live preview of how they will appear, a one-line explanation, and a 24px radio. The selected row gets a 2px forest inset ring and a mint ground. Initials and full name are disabled until a name is typed. "Completely anonymous" is the default and carries a sun-soft "Most private" tag. The same component appears in onboarding step 2 and in Me → Privacy.
+
 ### Feed Post
 Posts sit straight on the mist ground with 1.5px line dividers, not on cards. The author row has a 40px round avatar, then the body. A Counselor answer is a 12px block (river tint) with a river-ink byline. The action row (Helpful, reply) is ink-2 and turns berry-ink with a pop when active.
 

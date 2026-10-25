@@ -15,6 +15,7 @@ const S = {
   match: null, dm: [], dmDraft: "", joined: ["c1"], owned: [], wear: [], helpful: {}, translated: {}, seen: {},
   posts: POSTS.map(p => ({ ...p, replies: p.replies.map(r => ({ ...r })) })), thread: null, circle: null,
   crisis: null, toast: null, posted: false, replyDraft: "", breathing: false, petHinted: false, timeOverride: null, enter: null,
+  realName: "", nameShow: "anon",
   away: false, talk: { node: null, shown: null, typed: null, at: 0, seen: {}, ambient: 0 },
 };
 
@@ -26,7 +27,24 @@ const stateName = id => L(STATES.find(s => s.id === id) || {});
 const species = id => SPECIES.find(s => s.id === id) || SPECIES[0];
 const counselor = id => COUNSELORS.find(c => c.id === id);
 const licensedHere = () => !!S.state && !["OTHER", "INTL"].includes(S.state);
-const initials = n => n.split(/[ ,]/).filter(Boolean).slice(0, 2).map(w => w[0]).join("");
+const initials = n => n.replace(/\./g, " ").split(/[ ,]/).filter(Boolean).slice(0, 2).map(w => w[0]).join("");
+const CJK = /[\u3400-\u9fff]/;
+/* The Member's name stays private; the community sees only what they chose:
+   nothing (anon), initials ("L.Z.", or "張○○" for Chinese names) or the full name. */
+function displayName(show = S.nameShow) {
+  const n = S.realName.trim();
+  if (!n || show === "anon") return null;
+  if (show === "full") return n;
+  if (CJK.test(n)) return [...n][0] + "○".repeat(Math.max(1, [...n].length - 1));
+  return n.split(/\s+/).filter(Boolean).map(w => w[0].toUpperCase() + ".").join("");
+}
+/* What the Companion and the Counselor guide call the Member: a first or given name, else "friend". */
+function callName() {
+  const n = S.realName.trim();
+  if (!n) return t("friend");
+  if (CJK.test(n)) { const ch = [...n]; return ch.length >= 3 ? ch.slice(1).join("") : n; }
+  return n.split(/\s+/)[0];
+}
 const zhTag = () => (S.lang === "hs" ? "zh-Hans" : "zh-Hant");
 const ago = a => (a ? t(a[1] === "h" ? "ago_h" : "ago_d", { n: a[0] }) : t("ago_now"));
 const hueFor = name => ["#3c6b4a", "#17616d", "#a8361f", "#6b4c00", "#5b4a8c"][[...name].reduce((s, c) => s + c.charCodeAt(0), 0) % 5];
@@ -206,7 +224,7 @@ const REDUCED_UI = window.matchMedia("(prefers-reduced-motion: reduce)");
 let lastInput = Date.now();
 function tt(k, vars = {}) {
   let s = L(TT[k]) || k;
-  const all = { name: "Lily", pet: S.petName, greet: greeting(), ...vars };
+  const all = { name: callName(), pet: S.petName, greet: greeting(), ...vars };
   for (const v in all) s = s.split(`{${v}}`).join(all[v]);
   return s;
 }
@@ -378,6 +396,22 @@ setInterval(() => {
 }, 2000);
 ["pointerdown", "keydown"].forEach(ev => document.addEventListener(ev, () => (lastInput = Date.now()), true));
 
+function nameChoice() {
+  const has = !!S.realName.trim();
+  const ini = displayName("initials"), full = displayName("full");
+  const av = n => n ? `<span class="av" style="background:${hueFor(S.realName)}">${esc(initials(n))}</span>` : `<span class="av">${icon("me")}</span>`;
+  const opt = (v, title, sub, face) => {
+    const on = S.nameShow === v, off = v !== "anon" && !has;
+    return `<button class="who-opt ${on ? "on" : ""}" role="radio" aria-checked="${on}" data-a="nameShow" data-v="${v}" ${off ? "disabled" : ""}>${face}
+      <span class="t"><b>${title}</b><small>${off ? t("needs_name") : sub}</small>${v === "anon" ? `<span class="tag new" style="margin-top:6px">${t("most_private")}</span>` : ""}</span><span class="radio" aria-hidden="true"></span></button>`;
+  };
+  return `<div class="name-pick" role="radiogroup" aria-label="${t("show_as")}">
+    ${opt("anon", t("show_anon"), t("show_anon_sub"), `<span class="av anon">${icon("mask")}</span>`)}
+    ${opt("initials", ini ? `${t("show_initials")} · ${esc(ini)}` : t("show_initials"), t("show_initials_sub"), av(ini))}
+    ${opt("full", full ? `${t("show_full")} · ${esc(full)}` : t("show_full"), t("show_full_sub"), av(full))}
+  </div>`;
+}
+
 /* ---------- onboarding ---------- */
 function onboarding() {
   const st = S.step;
@@ -388,7 +422,7 @@ function onboarding() {
         <h1>${t("welcome_title")}</h1><p>${t("welcome_sub")}</p>
         <button class="btn sun block" data-a="next">${t("get_started")}</button>
         <button class="btn ghost block" data-a="signin">${t("have_account")}</button></div></div>`;
-  const prog = `<div class="progress" aria-hidden="true">${[1, 2, 3, 4].map(i => `<i class="${i <= st ? "on" : ""}"></i>`).join("")}</div>`;
+  const prog = `<div class="progress" aria-hidden="true">${[1, 2, 3, 4, 5].map(i => `<i class="${i <= st ? "on" : ""}"></i>`).join("")}</div>`;
   let inner = "", ok = true;
   if (st === 1) {
     ok = S.age && S.terms;
@@ -396,16 +430,22 @@ function onboarding() {
     inner = `<h2>${t("age_title")}</h2><p class="lede">${t("age_body")}</p>
       <div class="panel" style="margin:0;padding:2px 14px">${chk("age", t("age_18"), true)}${chk("terms", t("agree_terms"), true)}${chk("optMatch", t("optin_match"), false, t("optin_match_sub"))}${chk("optJournal", t("optin_journal"), false, t("optin_journal_sub"))}</div>`;
   } else if (st === 2) {
+    inner = `<h2>${t("name_title")}</h2><p class="lede">${t("name_sub")}</p>
+      <label class="label" for="realName">${t("your_name")}</label>
+      <input class="field" id="realName" data-model="realName" value="${esc(S.realName)}" placeholder="${t("name_ph")}" autocomplete="name" maxlength="40">
+      <span class="label" style="margin-top:20px">${t("show_as")}</span>${nameChoice()}
+      <p class="muted" style="margin:10px 2px 0">${t("change_later")}</p>`;
+  } else if (st === 3) {
     ok = S.focuses.length > 0;
     inner = `<h2>${t("focus_title")}</h2><p class="lede">${t("focus_sub")}</p>
       ${FOCUS.map(f => { const on = S.focuses.includes(f.id), main = S.mainFocus === f.id;
         return `<div class="focus-opt ${on ? "on" : ""}"><button class="focus-pick" data-a="focus" data-v="${f.id}" aria-pressed="${on}"><span class="box">${on ? icon("check") : ""}</span>${L(f)}</button>
           ${on ? `<button class="star ${main ? "main" : ""}" data-a="mainFocus" data-v="${f.id}" aria-pressed="${main}" aria-label="${t("set_main")}">${icon("star")}<span>${main ? t("main") : ""}</span></button>` : ""}</div>`; }).join("")}`;
-  } else if (st === 3) {
+  } else if (st === 4) {
     ok = !!S.state;
     inner = `<h2>${t("state_title")}</h2><p class="lede">${t("state_sub")}</p>
       ${STATES.map(s => `<button class="opt ${S.state === s.id ? "on" : ""}" data-a="state" data-v="${s.id}" aria-pressed="${S.state === s.id}">${icon(s.id === "INTL" ? "globe" : "pin")}<span>${L(s)}</span></button>`).join("")}`;
-  } else if (st === 4) {
+  } else if (st === 5) {
     ok = S.petName.trim().length > 0;
     inner = `<h2>${t("companion_title")}</h2><p class="lede" style="margin-bottom:12px">${t("companion_sub")}</p>
       <section class="stage picker" data-stage="picker"></section>
@@ -415,11 +455,11 @@ function onboarding() {
   }
   return `<div class="ob"><div class="ob-top"><button class="icon-btn" data-a="prev" aria-label="${t("back")}">${icon("back")}</button>${prog}${helpBtn()}</div>
     <div class="stepn">${t("step_of", { n: st })}</div>${inner}
-    <div class="foot"><button class="btn primary block" data-a="next" ${ok ? "" : "disabled"}>${st === 4 ? t("enter") : t("continue")}</button></div></div>`;
+    <div class="foot"><button class="btn primary block" data-a="next" ${ok ? "" : "disabled"}>${st === 5 ? t("enter") : t("continue")}</button></div></div>`;
 }
 
 /* ---------- screens ---------- */
-function greeting() { const h = hour(); return t(h < 12 && h >= 4 ? "greet_morning" : h < 18 && h >= 12 ? "greet_afternoon" : "greet_evening", { name: "Lily" }); }
+function greeting() { const h = hour(); return t(h < 12 && h >= 4 ? "greet_morning" : h < 18 && h >= 12 ? "greet_afternoon" : "greet_evening", { name: callName() }); }
 function home() {
   return `${hdrMain()}<div class="scroll">
     <h1 class="sr">${greeting()}</h1>
@@ -434,14 +474,16 @@ function home() {
 }
 function compose() {
   const can = S.draft.trim().length > 3;
+  const me = displayName(), persona = me ? S.persona : "anon";
   return `${hdrSub(t("ask_title"))}<div class="scroll pad">
     <span class="label">${t("focus_area")}</span>
     <div class="chips" style="margin-bottom:18px">${FOCUS.map(f => `<button class="chip ${S.draftFocus === f.id ? "on" : ""}" data-a="draftFocus" data-v="${f.id}" aria-pressed="${S.draftFocus === f.id}">${L(f)}</button>`).join("")}</div>
     <label class="label" for="draft">${t("ask_placeholder")}</label>
     <textarea class="field" id="draft" rows="6" placeholder="${t("ask_placeholder")}" data-model="draft">${esc(S.draft)}</textarea>
     <span class="label" style="margin-top:18px">${t("post_as")}</span>
-    <div class="seg" role="group">${[["anon", "mask", t("anonymous")], ["named", "me", "Lily Z."]].map(([v, ic, lb]) => `<button class="${S.persona === v ? "on" : ""}" data-a="persona" data-v="${v}" aria-pressed="${S.persona === v}">${icon(ic)}${lb}</button>`).join("")}</div>
-    <p class="muted" style="display:flex;gap:8px;margin:10px 2px 0">${icon(S.persona === "anon" ? "lock" : "me")}<span>${S.persona === "anon" ? t("anon_note") : t("named_note")}</span></p>
+    ${me ? `<div class="seg" role="group">${[["anon", "mask", t("anonymous")], ["named", "me", esc(me)]].map(([v, ic, lb]) => `<button class="${persona === v ? "on" : ""}" data-a="persona" data-v="${v}" aria-pressed="${persona === v}">${icon(ic)}${lb}</button>`).join("")}</div>`
+      : `<div class="seg"><button class="on" aria-pressed="true" disabled style="color:var(--forest)">${icon("mask")}${t("anonymous")}</button></div>`}
+    <p class="muted" style="display:flex;gap:8px;margin:10px 2px 0">${icon(persona === "anon" ? "lock" : "me")}<span>${me ? (persona === "anon" ? t("anon_note") : t("named_note")) : `${t("anon_note")} ${t("always_anon")}`}</span></p>
     <button class="btn primary block" style="margin-top:22px" data-a="post" ${can ? "" : "disabled"}>${t("post")}</button>
   </div>`;
 }
@@ -449,13 +491,13 @@ function thread() {
   const p = S.posts.find(x => x.id === S.thread) || S.posts[0];
   const tr = S.translated[p.id];
   const visible = p.replies.filter(r => !r.held || r.mine);
-  const who = S.replyPersona === "anon" ? t("anonymous") : "Lily Z.";
+  const me = displayName(), who = S.replyPersona === "anon" || !me ? t("anonymous") : me;
   return `${hdrSub(focusName(p.focus))}<div class="scroll"><div style="height:6px"></div>${postPanel(p, { full: true })}
     ${visible.length ? `<h2 class="section-h" style="font-size:var(--fs-m)">${visible.length === 1 ? t("reply_1") : t("replies_n", { n: visible.length })}</h2>
       <div class="list">${visible.map(r => { const tx = textFor(r.text, r.orig || "en", tr && !r.mine); const anon = r.author === "Anonymous";
         return `<div class="li" style="align-items:flex-start">${avatar(r.author, anon)}<span class="t"><b>${anon ? t("anonymous") : esc(r.author)}${r.held ? ` <span class="tag held">${t("held")}</span>` : ""}</b><span lang="${tx.lang}">${esc(tx.text)}</span></span></div>`; }).join("")}</div>` : ""}
     <div style="height:16px"></div></div>
-    <div class="as-wrap"><div class="as">${icon(S.replyPersona === "anon" ? "mask" : "me")}<span>${t("replying_as", { who })}</span><button data-a="replyPersona">${icon("swap")}${t("switch_identity")}</button></div>
+    <div class="as-wrap"><div class="as">${icon(S.replyPersona === "anon" || !me ? "mask" : "me")}<span>${t("replying_as", { who: esc(who) })}</span>${me ? `<button data-a="replyPersona">${icon("swap")}${t("switch_identity")}</button>` : ""}</div>
     <div class="composer"><input placeholder="${t("reply_placeholder")}" data-model="replyDraft" value="${esc(S.replyDraft)}" aria-label="${t("reply")}"><button class="btn primary" data-a="reply" aria-label="${t("reply")}">${icon("send")}</button></div></div>`;
 }
 function findHelpList() {
@@ -487,7 +529,7 @@ function dm() {
   const msgs = S.dm.map(m => m.type === "book"
     ? `<div class="bookcard"><div class="top">${icon("calendar")}${t("book_title")} · ${esc(c.name.split(",")[0])}</div><p>${t("book_note")}</p>
        <a class="btn primary block" href="https://www.bridgerivercounseling.com/services" target="_blank" rel="noopener" data-a="booked">${t("book_cta")}${icon("external")}</a></div>`
-    : `<div class="bubble ${m.me ? "me" : "them"}">${m.me ? "" : `<span class="from">${esc(c.name)}</span>`}${esc(m.key ? t(m.key, { me: "Lily", c: c.name.split(",")[0] }) : m.text)}</div>`).join("");
+    : `<div class="bubble ${m.me ? "me" : "them"}">${m.me ? "" : `<span class="from">${esc(c.name)}</span>`}${esc(m.key ? t(m.key, { me: callName(), c: c.name.split(",")[0] }) : m.text)}</div>`).join("");
   return `${hdrSub(esc(c.name))}<div class="dm-banner">${icon("shield")}<span>${t("dm_banner")}</span></div>
     <div class="scroll" id="dmScroll"><div style="height:12px"></div>${msgs}<div style="height:8px"></div></div>
     <div class="composer"><input placeholder="${t("message_ph", { name: esc(c.name.split(" ")[0]) })}" data-model="dmDraft" value="${esc(S.dmDraft)}" aria-label="${t("message")}"><button class="btn primary" data-a="sendDm" aria-label="${t("send")}">${icon("send")}</button></div>`;
@@ -560,7 +602,7 @@ function meScreen() {
   const g = S.match ? counselor(S.match) : null;
   return `${top ? hdrRoot(t("me")) : hdrSub(t("me"))}<div class="scroll">
     <div class="pad" style="display:flex;gap:14px;align-items:center"><span class="item" style="width:92px;height:92px;padding:4px;flex:none"><span class="art" style="width:100%">${thumb(S.species, S.wear.find(w => ["hat", "scarf"].includes(w)))}</span></span>
-      <div><div style="font:600 var(--fs-l)/1.2 var(--display);color:var(--forest)">Lily Z.</div><div class="muted">${esc(S.petName)} · ${L(species(S.species))}</div>
+      <div><div style="font:600 var(--fs-l)/1.2 var(--display);color:var(--forest)">${esc(S.realName.trim() || t("not_set"))}</div><div class="muted">${t("community_sees", { who: esc(displayName() || t("anonymous")) })}</div><div class="muted">${esc(S.petName)} · ${L(species(S.species))}</div>
       <div class="muted" style="display:flex;gap:4px;align-items:center">${icon("star")}${focusName(S.mainFocus || "individual")}${S.focuses.length > 1 ? ` +${S.focuses.length - 1}` : ""}</div></div></div>
     <div class="panel" style="padding:2px 14px">
       <div class="row"><span class="k">${t("language")}</span><div class="chips">${[["en", "EN"], ["ht", "繁"], ["hs", "简"]].map(([l, n]) => `<button class="chip ${S.lang === l ? "on" : ""}" style="min-width:48px;justify-content:center" data-a="lang" data-v="${l}" aria-pressed="${S.lang === l}">${n}</button>`).join("")}</div></div>
@@ -568,6 +610,11 @@ function meScreen() {
       <button class="row" style="width:100%;border:0;background:none;text-align:left;color:inherit" data-a="go" data-v="${g ? "dm" : "guide"}"><span class="k">${t("my_guide")}</span><span class="muted">${g ? esc(g.name) : ""}</span>${icon("chev")}</button>
     </div>
     <h2 class="section-h">${t("privacy")}</h2>
+    <div class="panel" style="padding:14px">
+      <label class="label" for="meName">${t("name_label")}</label>
+      <input class="field" id="meName" data-model="realName" value="${esc(S.realName)}" placeholder="${t("name_ph")}" autocomplete="name" maxlength="40">
+      <span class="label" style="margin-top:16px">${t("show_as")}</span>${nameChoice()}
+    </div>
     <div class="panel" style="padding:2px 14px">${sw("optMatch", t("counselor_matching"))}${sw("shareMood", t("share_mood"))}${sw("showCircles", t("show_circles"))}${sw("showFriends", t("show_friends"))}${sw("optJournal", t("optin_journal"))}</div>
     <div class="pad"><button class="btn quiet block" data-a="replay">${t("replay")}</button></div></div>`;
 }
@@ -633,7 +680,7 @@ const SCREEN_NOTES = {
 function renderNotes() {
   const n = $("#screenName"); if (!n) return;
   const key = S.screen === "onboard" ? "onboard" : S.screen;
-  n.textContent = S.screen === "onboard" ? (S.step ? `Onboarding · step ${S.step} of 4` : "Welcome") : key[0].toUpperCase() + key.slice(1);
+  n.textContent = S.screen === "onboard" ? (S.step ? `Onboarding · step ${S.step} of 5` : "Welcome") : key[0].toUpperCase() + key.slice(1);
   $("#screenNotes").innerHTML = (SCREEN_NOTES[key] || SCREEN_NOTES.home).map(x => `<li>${esc(x)}</li>`).join("");
   $("#times").innerHTML = [[null, "Live"], [7, "Morning"], [13, "Day"], [18.6, "Dusk"], [22, "Night"], [23.6, "Late night"]].map(([h, l]) => `<button data-time="${h ?? ""}" class="${S.timeOverride === h ? "on" : ""}">${l}</button>`).join("")
     + `<button data-away class="${S.away ? "on" : ""}">A day away</button>`;
@@ -645,12 +692,12 @@ function renderNotes() {
 /* ---------- actions ---------- */
 const actions = {
   next() {
-    if (S.step < 4) { S.step++; if (S.step === 4 && world) world.anim.pop = world.time; }
+    if (S.step < 5) { S.step++; if (S.step === 5 && world) world.anim.pop = world.time; }
     else { S.screen = "home"; S.stack = []; S.draftFocus = S.mainFocus || "individual"; toast(t("welcome_toast", { n: 20 })); }
     render(true);
   },
   prev() { S.step = Math.max(0, S.step - 1); render(true); },
-  signin() { Object.assign(S, { age: true, terms: true, optMatch: true, focuses: ["parenting"], mainFocus: "parenting", state: "TX", screen: "home", stack: [] }); toast(t("sign_in_na"), "me"); render(true); },
+  signin() { Object.assign(S, { realName: "Lily Zhang", nameShow: "initials", age: true, terms: true, optMatch: true, focuses: ["parenting"], mainFocus: "parenting", state: "TX", screen: "home", stack: [] }); toast(t("sign_in_na"), "me"); render(true); },
   lang(v) { S.lang = v; render(); },
   flag(v, el) { S[v] = el.checked; render(); },
   flagOn(v) { S[v] = true; render(); },
@@ -673,12 +720,14 @@ const actions = {
   helpful(v) { S.helpful[v] = !S.helpful[v]; render(); },
   join(v) { S.joined = S.joined.includes(v) ? S.joined.filter(x => x !== v) : [...S.joined, v]; render(); },
   persona(v) { S.persona = v; render(); },
+  nameShow(v) { if (v !== "anon" && !S.realName.trim()) return; S.nameShow = v; render(); },
   replyPersona() { S.replyPersona = S.replyPersona === "anon" ? "named" : "anon"; render(); },
   draftFocus(v) { S.draftFocus = v; render(); },
   post() {
     const text = S.draft.trim(); if (text.length <= 3) return;
     const risky = isRisky(text);
-    const p = { id: "u" + Date.now(), anon: S.persona === "anon", author: "Lily Z.", focus: S.draftFocus, ago: null, orig: S.lang === "en" ? "en" : "zh", text, answer: null, replies: [], helpful: 0, mine: true, held: risky };
+    const me = displayName();
+    const p = { id: "u" + Date.now(), anon: S.persona === "anon" || !me, author: me || "Anonymous", focus: S.draftFocus, ago: null, orig: S.lang === "en" ? "en" : "zh", text, answer: null, replies: [], helpful: 0, mine: true, held: risky };
     S.posts.unshift(p); S.draft = ""; S.posted = true; S.stack = []; S.screen = "home"; S.enter = p.id;
     if (risky) { S.crisis = "held"; talkTo("after_hold", { silent: true }); }
     else { const got = earn(5); toast(got ? `${t("posted")} · ${t("seeds_earned", { n: got })}` : t("posted")); talkTo("posted", { silent: true }); }
@@ -687,7 +736,8 @@ const actions = {
   reply() {
     const text = (S.replyDraft || "").trim(); if (!text) return;
     const p = S.posts.find(x => x.id === S.thread); const risky = isRisky(text);
-    p.replies.push({ author: S.replyPersona === "anon" ? "Anonymous" : "Lily Z.", orig: S.lang === "en" ? "en" : "zh", text, mine: true, held: risky });
+    const me = displayName();
+    p.replies.push({ author: S.replyPersona === "anon" || !me ? "Anonymous" : me, orig: S.lang === "en" ? "en" : "zh", text, mine: true, held: risky });
     S.replyDraft = "";
     if (risky) S.crisis = "held"; else { const got = earn(2); if (got) toast(t("seeds_earned", { n: got })); }
     render();
@@ -767,6 +817,7 @@ document.addEventListener("input", e => {
   const el = e.target; const k = el.dataset && el.dataset.model; if (!k) return;
   S[k] = el.value;
   if (k === "draft") { const b = document.querySelector('[data-a="post"]'); if (b) b.disabled = el.value.trim().length <= 3; }
+  if (k === "realName") { if (!el.value.trim()) S.nameShow = "anon"; render(); return; }
   if (k === "petName") { const b = document.querySelector('[data-a="next"]'); if (b) b.disabled = !el.value.trim(); }
 });
 document.addEventListener("keydown", e => {
@@ -789,7 +840,7 @@ document.addEventListener("keydown", e => {
 })();
 
 /* Deep links for reviewing screens: ?skip=1, ?screen=…, ?lang=ht, ?step=2, ?loc=INTL, ?checkedin=1, ?mood=sad, ?match=k1, ?sheet=held, ?thread=p1, ?draft=…, ?time=22 */
-if (params.get("skip") === "1" || params.get("screen")) Object.assign(S, { screen: "home", age: true, terms: true, optMatch: true, focuses: ["parenting"], mainFocus: "parenting", state: "TX" });
+if (params.get("skip") === "1" || params.get("screen")) Object.assign(S, { realName: "Lily Zhang", nameShow: "initials", screen: "home", age: true, terms: true, optMatch: true, focuses: ["parenting"], mainFocus: "parenting", state: "TX" });
 if (params.get("screen")) { S.screen = params.get("screen"); if (!["home", "circles", "companion", "me"].includes(S.screen)) S.stack = [{ screen: "home" }]; }
 if (params.get("lang")) S.lang = params.get("lang");
 if (params.get("step")) { S.step = +params.get("step"); if (S.step >= 2) Object.assign(S, { age: true, terms: true }); }
@@ -804,6 +855,8 @@ if (params.get("draft")) S.draft = params.get("draft");
 if (params.get("time")) S.timeOverride = +params.get("time");
 if (params.get("hinted") === "1") S.petHinted = true;
 if (params.get("away") === "1") S.away = true;
+if (params.get("name") !== null) S.realName = params.get("name");
+if (params.get("show")) S.nameShow = displayName(params.get("show")) ? params.get("show") : "anon";
 if (params.get("talk")) S.talk.node = params.get("talk");
 render(true);
 window.addEventListener("companion-ready", initWorld);
