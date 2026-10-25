@@ -68,6 +68,11 @@ a { color: var(--river-ink); text-underline-offset: 3px; }
 .spacer { flex: 1; }
 .icon-btn { width: 44px; height: 44px; border-radius: 14px; border: 0; background: transparent; color: inherit; display: grid; place-items: center; flex: none; transition: background .2s, transform var(--t) var(--spring); }
 .icon-btn:hover { background: rgba(242, 250, 244, .12); }
+.back-btn { display: inline-flex; align-items: center; gap: 2px; height: 44px; max-width: 46%; padding: 0 14px 0 6px; border: 0; border-radius: 999px; flex: none;
+  background: rgba(242, 250, 244, .12); color: var(--on-forest); font: 700 var(--fs-s)/1 var(--body); white-space: nowrap; transition: background .2s, transform var(--t) var(--spring); }
+.back-btn span { overflow: hidden; text-overflow: ellipsis; }
+.back-btn:hover { background: rgba(242, 250, 244, .2); }
+.back-btn:active { transform: scale(.96); }
 .icon-btn:active { transform: scale(.92); }
 .seeds { display: inline-flex; align-items: center; gap: 5px; height: 44px; padding: 0 12px 0 10px; border-radius: 999px; border: 0;
   background: rgba(242, 250, 244, .12); color: var(--on-forest); font: 700 var(--fs-s)/1 var(--body); font-variant-numeric: tabular-nums; white-space: nowrap; transition: background .2s, transform var(--t) var(--spring); }
@@ -771,7 +776,20 @@ const suggestions = () => COUNSELORS.filter(c => !c.full && c.states.includes(S.
     || ((S.lang !== "en") * (b.zh - a.zh))).slice(0, 3);
 function earn(n) { const got = Math.max(0, Math.min(n, 25 - S.earnedToday)); S.seeds += got; S.earnedToday += got; return got; }
 function toast(msg, ic = "seed") { S.toast = { msg, ic, id: Date.now() }; }
-function go(screen, extra = {}) { S.stack.push({ screen: S.screen, thread: S.thread, circle: S.circle }); Object.assign(S, extra, { screen, breathing: false }); render(true); }
+/* Home, Circles, Companion and Me are tab roots: going to one switches tabs instead of stacking a copy. */
+const TAB_ROOTS = ["home", "circles", "companion", "me"];
+const SECTION_OF = { shop: "companion", circle: "circles" };
+const NO_TAB_BAR = ["compose", "thread", "dm"];
+function sectionTab() {
+  if (TAB_ROOTS.includes(S.screen)) return S.screen;
+  if (SECTION_OF[S.screen]) return SECTION_OF[S.screen];
+  const root = S.stack[0] && S.stack[0].screen;
+  return TAB_ROOTS.includes(root) ? root : "home";
+}
+function go(screen, extra = {}) {
+  if (TAB_ROOTS.includes(screen)) { Object.assign(S, extra, { screen, stack: [], breathing: false }); render(true); return; }
+  S.stack.push({ screen: S.screen, thread: S.thread, circle: S.circle }); Object.assign(S, extra, { screen, breathing: false }); render(true);
+}
 function back() { const prev = S.stack.pop() || { screen: "home" }; Object.assign(S, prev, { breathing: false }); render(true); }
 const isRoot = () => S.stack.length === 0;
 function hour() { if (S.timeOverride != null) return S.timeOverride; const d = new Date(); return d.getHours() + d.getMinutes() / 60; }
@@ -869,9 +887,11 @@ function hdrMain() {
 }
 function hdrRoot(title) { return `<header class="hdr"><div class="hdr-row" style="padding-left:var(--gut)"><span class="hdr-title">${title}</span>${seedsBtn()}${helpBtn()}</div></header>`; }
 function hdrSub(title) {
-  return `<header class="hdr"><div class="hdr-row" style="padding-left:6px"><button class="icon-btn" data-a="back" aria-label="${t("back")}">${icon("back")}</button>
+  return `<header class="hdr"><div class="hdr-row" style="padding-left:8px"><button class="back-btn" data-a="back" aria-label="${t("back")}: ${backLabel()}">${icon("back")}<span>${backLabel()}</span></button>
     <span class="hdr-title">${title}</span>${helpBtn()}</div></header>`;
 }
+const BACK_LABEL = { home: "home", circles: "circles", companion: "companion", me: "me", shop: "shop", learn: "learn", guide: "my_guide" };
+function backLabel() { const prev = S.stack[S.stack.length - 1]; const k = prev && BACK_LABEL[prev.screen]; return k ? t(k) : t("back"); }
 function tabs(active) {
   const tab = (id, ic, label) => `<button class="${active === id ? "on" : ""}" data-a="tab" data-v="${id}" ${active === id ? 'aria-current="page"' : ""}>${icon(ic)}<span>${label}</span></button>`;
   return `<nav class="tabs" aria-label="Main">${tab("home", "home", t("home"))}${tab("circles", "circles", t("circles"))}
@@ -973,7 +993,7 @@ function home() {
       <button class="askfield" data-a="go" data-v="compose">${icon("ask")}${t("ask_placeholder")}</button>
       <h2 class="section-h">${t("community")}<button class="more" data-a="go" data-v="learn">${icon("learn")}${t("learn")}</button></h2>
       ${feedList()}<div style="height:8px"></div>
-    </div></div>${tabs("home")}`;
+    </div></div>`;
 }
 function compose() {
   const can = S.draft.trim().length > 3;
@@ -1063,7 +1083,7 @@ function companionScreen() {
         return `<div class="badge ${on ? "earned" : ""}"><div class="b">${icon(b.icon)}</div>${L(b)}</div>`; }).join("")}</div>
       <h2 class="section-h">${t("shop")}<button class="more" data-a="go" data-v="shop">${t("see_all")}${icon("chev")}</button></h2>
       <div class="grid2">${SHOP.slice(0, 2).map(shopItem).join("")}</div>
-    </div></div>${top ? tabs("companion") : ""}`;
+    </div></div>`;
 }
 function shopItem(it) {
   const own = S.owned.includes(it.id);
@@ -1086,7 +1106,7 @@ function circleList() {
 }
 function circlesScreen() {
   const top = isRoot();
-  return `${top ? hdrRoot(t("circles")) : hdrSub(t("circles"))}<div class="scroll"><p class="pad muted" style="margin:0;display:flex;gap:8px">${icon("lock")}<span>${t("members_only")}</span></p>${circleList()}<div style="height:12px"></div></div>${top ? tabs("circles") : ""}`;
+  return `${top ? hdrRoot(t("circles")) : hdrSub(t("circles"))}<div class="scroll"><p class="pad muted" style="margin:0;display:flex;gap:8px">${icon("lock")}<span>${t("members_only")}</span></p>${circleList()}<div style="height:12px"></div></div>`;
 }
 function circleScreen() {
   const c = CIRCLES.find(x => x.id === S.circle) || CIRCLES[0];
@@ -1114,7 +1134,7 @@ function meScreen() {
     </div>
     <h2 class="section-h">${t("privacy")}</h2>
     <div class="panel" style="padding:2px 14px">${sw("optMatch", t("counselor_matching"))}${sw("shareMood", t("share_mood"))}${sw("showCircles", t("show_circles"))}${sw("showFriends", t("show_friends"))}${sw("optJournal", t("optin_journal"))}</div>
-    <div class="pad"><button class="btn quiet block" data-a="replay">${t("replay")}</button></div></div>${top ? tabs("me") : ""}`;
+    <div class="pad"><button class="btn quiet block" data-a="replay">${t("replay")}</button></div></div>`;
 }
 function crisisSheet() {
   const ctx = S.crisis;
@@ -1142,6 +1162,7 @@ function render(nav = false) {
   document.documentElement.lang = S.lang === "en" ? "en" : zhTag();
   syncWorld();
   let html = view();
+  if (S.screen !== "onboard" && !NO_TAB_BAR.includes(S.screen)) html += tabs(sectionTab());
   if (S.crisis) html += crisisSheet();
   if (S.toast) html += `<div class="toast" role="status">${icon(S.toast.ic)}${esc(S.toast.msg)}</div>`;
   $("#app").innerHTML = html;

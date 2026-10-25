@@ -57,6 +57,11 @@ a { color: var(--river-ink); text-underline-offset: 3px; }
 .spacer { flex: 1; }
 .icon-btn { width: 44px; height: 44px; border-radius: 14px; border: 0; background: transparent; color: inherit; display: grid; place-items: center; flex: none; transition: background .2s, transform var(--t) var(--spring); }
 .icon-btn:hover { background: rgba(242, 250, 244, .12); }
+.back-btn { display: inline-flex; align-items: center; gap: 2px; height: 44px; max-width: 46%; padding: 0 14px 0 6px; border: 0; border-radius: 999px; flex: none;
+  background: rgba(242, 250, 244, .12); color: var(--on-forest); font: 700 var(--fs-s)/1 var(--body); white-space: nowrap; transition: background .2s, transform var(--t) var(--spring); }
+.back-btn span { overflow: hidden; text-overflow: ellipsis; }
+.back-btn:hover { background: rgba(242, 250, 244, .2); }
+.back-btn:active { transform: scale(.96); }
 .icon-btn:active { transform: scale(.92); }
 .seeds { display: inline-flex; align-items: center; gap: 5px; height: 44px; padding: 0 12px 0 10px; border-radius: 999px; border: 0;
   background: rgba(242, 250, 244, .12); color: var(--on-forest); font: 700 var(--fs-s)/1 var(--body); font-variant-numeric: tabular-nums; white-space: nowrap; transition: background .2s, transform var(--t) var(--spring); }
