@@ -715,11 +715,16 @@ button.li:hover { background: #f5faf7; }
 .feature-photo-checkin { background-image:url("assets/home-checkin.png"); background-size:auto 143%; }
 
 .app-tour-launch { align-self:center; background:none; border:0; color:var(--forest); font:700 14px var(--body); padding:14px; text-decoration:underline; cursor:pointer; }
-.app-tour-overlay { position:absolute; inset:0; z-index:50; display:flex; align-items:flex-end; padding:16px; background:rgba(21,43,30,.36); }
-.app-tour-card { width:100%; max-height:100%; overflow:auto; border-radius:20px; padding:20px; background:#fbfdfb; box-shadow:0 12px 36px rgba(15,35,22,.22); color:var(--forest); }
+.app-tour-overlay { position:absolute; inset:0; z-index:50; display:flex; align-items:flex-end; padding:16px; background:transparent; overflow:hidden; }
+.app-tour-spotlight { position:absolute; border:3px solid #ffd15c; border-radius:12px; box-shadow:0 0 0 200vmax rgba(21,43,30,.58); pointer-events:none; }
+.app-tour-card { position:relative; width:100%; max-height:100%; overflow:auto; border-radius:20px; padding:20px; background:#fbfdfb; box-shadow:0 12px 36px rgba(15,35,22,.22); color:var(--forest); }
 .app-tour-top { display:flex; justify-content:space-between; gap:10px; font-size:12px; font-weight:800; color:#55715c; }
 .app-tour-card h2 { margin:12px 0 6px; font-size:21px; }
 .app-tour-card p { margin:0; font-size:14px; line-height:1.5; }
 .app-tour-actions { display:flex; align-items:center; justify-content:flex-end; gap:8px; margin-top:18px; }
 .app-tour-actions .btn { padding:10px 14px; min-width:0; }
 .app-tour-exit { margin-right:auto; border:0; background:none; color:var(--forest); font:700 13px var(--body); text-decoration:underline; cursor:pointer; }
+
+.app-tour-music { margin-top:12px; }
+
+.app-tour-overlay.app-tour-card-top { align-items:flex-start; }

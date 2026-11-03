@@ -19,7 +19,8 @@ async function toggleBackgroundMusic() {
   stopCareAudio();
   let ctx;
   try {
-    ctx = new AudioContext();
+    const AudioEngine = window.AudioContext || window.webkitAudioContext;
+    ctx = new AudioEngine();
     const master = ctx.createGain(); master.gain.value = musicVolume / 100 * .5; master.connect(ctx.destination);
     const piano = musicChoice === 'piano';
     const session = {ctx,master,timer:null}; backgroundMusic = session;
@@ -83,10 +84,11 @@ document.addEventListener('visibilitychange',()=>{if(document.hidden && backgrou
 window.addEventListener('pagehide',stopBackgroundMusic);
 
 function startDefaultMusic() {
-  if (document.hidden || typeof AudioContext === "undefined") return;
+  if (document.hidden || !(window.AudioContext || window.webkitAudioContext)) return;
   let probe;
   try {
-    probe = new AudioContext();
+    const AudioEngine = window.AudioContext || window.webkitAudioContext;
+    probe = new AudioEngine();
     if (probe.state === "running") { probe.close().catch(() => {}); toggleBackgroundMusic(); return; }
     probe.close().catch(() => {});
   } catch { return; }

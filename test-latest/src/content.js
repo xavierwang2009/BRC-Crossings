@@ -25,6 +25,8 @@ const I18N = {
   app_tour_post_body: {en:"Choose a topic and write a community post. You can post anonymously; replies and helpful reactions appear on posts.",ht:"選擇主題並撰寫社群貼文。你可以匿名發文，也可以查看回覆和有幫助的回應。",hs:"选择主题并撰写社群帖子。你可以匿名发帖，也可以查看回复和有帮助的回应。"},
   app_tour_friends: {en:"Make connections",ht:"建立連結",hs:"建立联系"},
   app_tour_friends_body: {en:"Explore people, manage friend requests, and message accepted friends. Messages in this preview stay in this session.",ht:"探索其他使用者、管理好友邀請，並傳訊給已接受的好友。預覽訊息只保留於本次使用期間。",hs:"探索其他用户、管理好友请求，并向已接受的好友发送消息。预览消息只保留在本次使用期间。"},
+  app_tour_guide_sample: {en:"Example only: this fictional profile shows how a counselor guide could appear. Availability depends on your location and preferences.", ht:"僅供示範：此虛構資料展示輔導員的可能樣貌。實際選項取決於所在地和偏好。", hs:"仅供示例：此虚构资料展示辅导员的可能样貌。实际选项取决于所在地和偏好。"},
+  app_tour_sample_label: {en:"Fictional sample", ht:"虛構範例", hs:"虚构示例"},
   app_tour_guide: {en:"Explore counselor guidance",ht:"探索輔導員指引",hs:"探索辅导员指引"},
   app_tour_guide_body: {en:"Guide availability depends on location and your matching preference. Counselor profiles and messages here are a preview.",ht:"輔導員選項取決於所在地和配對偏好。此處的輔導員資料與訊息僅供預覽。",hs:"辅导员选项取决于所在地和匹配偏好。此处的辅导员资料与消息仅供预览。"},
   app_tour_care: {en:"Care at your own pace",ht:"按自己的步調照顧自己",hs:"按自己的节奏照顾自己"},

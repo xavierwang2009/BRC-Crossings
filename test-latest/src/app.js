@@ -663,6 +663,10 @@ function findHelpList() {
   return S.state ? lines : lines + `<a class="line" href="https://findahelpline.com" target="_blank" rel="noopener"><span class="t"><span class="num" style="font-size:var(--fs-m)">${t("intl_help")}</span><small>${t("intl_help_sub")}</small></span><span class="call ext">${icon("external")}</span></a>`;
 }
 function guide() {
+  if (S.appTour !== null && S.screen === "guide") {
+    const c = COUNSELORS[0];
+    return `${hdrSub(t("my_guide"))}<div class="scroll"><p class="pad muted">${t("app_tour_guide_sample")}</p><article class="panel cc tour-guide-sample"><div class="cc-top"><span class="av" style="background:${c.hue};width:48px;height:48px">${initials(c.name)}</span><div><div class="nm">${esc(c.name)}</div><div class="meta">${esc(c.langs)}</div></div></div><p>${esc(L(c.bio))}</p><span class="tag">${t("app_tour_sample_label")}</span></article></div>`;
+  }
   if (!licensedHere()) {
     return `${hdrSub(t("my_guide"))}<div class="scroll"><div style="height:14px"></div><div class="notice"><h3>${t("oos_title")}</h3><p>${t("oos_body")}</p></div>
       <h2 class="section-h">${t("find_help_near")}</h2><div style="padding:0 var(--gut)">${findHelpList()}
@@ -890,7 +894,7 @@ function meScreen() {
     <button class="panel activity-link" data-a="go" data-v="friends">${icon("circles")}<span><b>${t("friends_title")} (${Object.values(S.friendships).filter(v => v === "friend").length})</b><small>${t("friend_incoming")}: ${Object.values(S.friendships).filter(v => v === "incoming").length}</small></span>${icon("chev")}</button>
     <button class="panel activity-link" data-a="go" data-v="learn">${icon("learn")}<span><b>${t("practice_library")}</b></span>${icon("chev")}</button>
     <h2 class="section-h">${t("privacy")}</h2>
-    <div class="panel" style="padding:14px">
+    <div class="panel tour-profile" style="padding:14px">
       <label class="label" for="meName">${t("name_label")}</label>
       <input class="field" id="meName" data-model="realName" value="${esc(S.realName)}" placeholder="${t("name_ph")}" autocomplete="name" maxlength="40">
       <span class="label" style="margin-top:16px">${t("show_as")}</span>${nameChoice()}
@@ -911,30 +915,50 @@ function crisisSheet() {
 }
 
 const APP_TOUR = [
-  ["home", "app_tour_welcome", "app_tour_welcome_body"],
-  ["home", "app_tour_music", "app_tour_music_body"],
-  ["home", "app_tour_rotation", "app_tour_rotation_body"],
-  ["home", "app_tour_entry", "app_tour_entry_body"],
-  ["circles", "app_tour_circles", "app_tour_circles_body"],
-  ["ask", "app_tour_ask", "app_tour_ask_body"],
-  ["compose", "app_tour_post", "app_tour_post_body"],
-  ["friends", "app_tour_friends", "app_tour_friends_body"],
-  ["guide", "app_tour_guide", "app_tour_guide_body"],
-  ["companion", "app_tour_companion", "app_tour_companion_body"],
-  ["companion", "app_tour_care", "app_tour_care_body"],
-  ["learn", "app_tour_library", "app_tour_library_body"],
-  ["activity", "app_tour_activity", "app_tour_activity_body"],
-  ["shop", "app_tour_shop", "app_tour_shop_body"],
-  ["me", "app_tour_profile", "app_tour_profile_body"],
-  ["me", "app_tour_help", "app_tour_help_body"],
+  ["home", "app_tour_music", "app_tour_music_body", ".music-controls"],
+  ["circles", "app_tour_circles", "app_tour_circles_body", ".scroll .list .li"],
+  ["ask", "app_tour_ask", "app_tour_ask_body", ".ask-destination[data-v=compose]"],
+  ["friends", "app_tour_friends", "app_tour_friends_body", ".friends-panel:last-of-type"],
+  ["guide", "app_tour_guide", "app_tour_guide_body", ".tour-guide-sample"],
+  ["companion", "app_tour_companion", "app_tour_companion_body", "#compScroll .tray"],
+  ["learn", "app_tour_library", "app_tour_library_body", ".practice-filters"],
+  ["activity", "app_tour_activity", "app_tour_activity_body", ".streak-pair"],
+  ["shop", "app_tour_shop", "app_tour_shop_body", ".grid2 .item"],
+  ["me", "app_tour_profile", "app_tour_profile_body", ".tour-profile"],
 ];
 function appTourPanel() {
   const index = S.appTour, step = APP_TOUR[index];
-  return `<div class="app-tour-overlay"><section class="app-tour-card" role="dialog" aria-modal="true" aria-labelledby="app-tour-title" aria-describedby="app-tour-body">
+  return `<div class="app-tour-overlay"><div class="app-tour-spotlight" aria-hidden="true"></div><section class="app-tour-card" role="dialog" aria-modal="true" aria-labelledby="app-tour-title" aria-describedby="app-tour-body">
     <div class="app-tour-top"><span>${t("app_tour_demo")}</span><span>${t("app_tour_step", {n:index + 1, total:APP_TOUR.length})}</span></div>
-    <h2 id="app-tour-title">${t(step[1])}</h2><p id="app-tour-body">${t(step[2])}</p>
+    <h2 id="app-tour-title">${t(step[1])}</h2><p id="app-tour-body">${t(step[2])}</p>${step[1] === "app_tour_music" ? `<button class="btn quiet app-tour-music" data-a="music">${t(backgroundMusic ? "music_pause" : "music_play")}</button>` : ""}
     <div class="app-tour-actions"><button class="app-tour-exit" data-a="appTourExit">${t("app_tour_skip")}</button>${index ? `<button class="btn quiet" data-a="appTourMove" data-v="-1">${t("app_tour_previous")}</button>` : ""}<button class="btn primary" data-a="appTourMove" data-v="1" data-autofocus>${t(index === APP_TOUR.length - 1 ? "app_tour_finish" : "app_tour_next")}</button></div>
   </section></div>`;
+}
+
+function highlightAppTour() {
+  if (S.appTour === null) return;
+  const overlay = document.querySelector(".app-tour-overlay"), card = overlay?.querySelector(".app-tour-card");
+  const target = document.querySelector(APP_TOUR[S.appTour][3]), spot = overlay?.querySelector(".app-tour-spotlight");
+  if (!overlay || !card || !target || !spot) return;
+  const scroll = target.closest(".scroll");
+  if (scroll) {
+    const area = scroll.getBoundingClientRect(), rect = target.getBoundingClientRect();
+    const previous = scroll.style.scrollBehavior;
+    scroll.style.scrollBehavior = "auto";
+    scroll.scrollTop += rect.top - area.top - 12;
+    scroll.style.scrollBehavior = previous;
+  }
+  const bounds = overlay.getBoundingClientRect(), rect = target.getBoundingClientRect();
+  const moveUp = rect.top >= card.getBoundingClientRect().top - 10;
+  overlay.classList.toggle("app-tour-card-top", moveUp);
+  const cardRect = card.getBoundingClientRect();
+  const bottom = moveUp ? bounds.height - 4 : cardRect.top - bounds.top - 10;
+  const minimumTop = moveUp ? cardRect.bottom - bounds.top + 10 : 4;
+  const left = Math.max(4, rect.left - bounds.left - 4), top = Math.max(minimumTop, rect.top - bounds.top - 4);
+  const right = Math.min(bounds.width - 4, rect.right - bounds.left + 4);
+  const end = Math.min(bottom, rect.bottom - bounds.top + 4);
+  if (right <= left || end <= top) return;
+  Object.assign(spot.style, {left:`${left}px`, top:`${top}px`, width:`${right-left}px`, height:`${end-top}px`});
 }
 
 /* ---------- render ---------- */
@@ -974,6 +998,7 @@ function render(nav = false) {
   mountHomeHero();
   const nsc = document.querySelector("#app .scroll");
   if (nsc) { nsc.style.scrollBehavior = "auto"; nsc.scrollTop = ["dm", "friendDm"].includes(S.screen) ? nsc.scrollHeight : keep; nsc.style.scrollBehavior = ""; }
+  highlightAppTour();
   if (active) { const el = document.querySelector(`[data-model="${active}"]`); if (el) { el.focus(); const v = el.value; el.value = ""; el.value = v; } }
   if (nav || (tourFocus && S.appTour !== null)) document.querySelector("#app [data-autofocus]")?.focus({ preventScroll: true });
   lastScreen = S.screen; S.enter = null;
@@ -1257,3 +1282,4 @@ initWorld();
 
 document.addEventListener("visibilitychange", () => { if (document.hidden && careAudio) { stopCareAudio(); render(); } });
 window.addEventListener("pagehide", stopCareAudio);
+window.addEventListener("resize", highlightAppTour);

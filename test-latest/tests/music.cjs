@@ -3,7 +3,7 @@ const events={},timers=new Set(),contexts=[];
 const param=()=>({value:0,setValueAtTime(){},linearRampToValueAtTime(){},exponentialRampToValueAtTime(){}});
 const node=()=>({gain:param(),frequency:param(),delayTime:param(),connect(){return this},disconnect(){},start(){},stop(){}});
 class AudioContext {constructor(){this.currentTime=0;this.destination={};this.notes=0;contexts.push(this)}createGain(){return node()}createDelay(){return node()}createOscillator(){this.notes++;return node()}resume(){return Promise.resolve()}close(){this.closed=true;return Promise.resolve()}}
-const ctx=vm.createContext({AudioContext,document:{hidden:false,addEventListener:(k,fn)=>events[k]=fn},window:{addEventListener:(k,fn)=>events[k]=fn},setInterval:fn=>{timers.add(fn);return fn},clearInterval:fn=>timers.delete(fn),stopCareAudio(){},render(){},toast(){},t:k=>k});
+const ctx=vm.createContext({AudioContext,document:{hidden:false,addEventListener:(k,fn)=>events[k]=fn},window:{AudioContext,addEventListener:(k,fn)=>events[k]=fn},setInterval:fn=>{timers.add(fn);return fn},clearInterval:fn=>timers.delete(fn),stopCareAudio(){},render(){},toast(){},t:k=>k});
 vm.runInContext(fs.readFileSync('src/music.js','utf8'),ctx);
 (async()=>{
  assert.equal(contexts.length,0,'No autoplay');
