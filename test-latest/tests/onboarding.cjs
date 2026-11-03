@@ -17,8 +17,13 @@ vm.runInContext('function back() { const p = S.stack.pop() || { screen: "home" }
 assert.equal(back.S.screen,'home','Back from step 1 should return to Home when setup started there');
 back.S.screen='onboard'; back.S.step=1; back.S.stack=[];
 vm.runInContext('actions.prev()', back);
-assert.equal(back.S.screen,'onboard'); assert.equal(back.S.step,0,'Replayed onboarding still steps back to the welcome tour');
+assert.equal(back.S.screen,'onboard'); assert.equal(back.S.step,0,'With no earlier screen, step 1 steps back to step 0');
 back.S.step=3; back.S.stack=[{screen:'home'}];
 vm.runInContext('actions.prev()', back);
 assert.equal(back.S.step,2);
-console.log('Onboarding completion opens Circles and preserves companion validation; back from step 1 returns to where setup began.');
+const replay = source.slice(source.indexOf('  replay() {'), source.indexOf('  talk(i) {'));
+const again = vm.createContext({ S: { member:true, screen:'me', step:5, stack:[{screen:'me'}], appTour:null }, render(){} });
+vm.runInContext('const actions = {' + replay + '}; actions.replay();', again);
+assert.equal(again.S.screen,'home'); assert.equal(again.S.member,false,'Replay shows the public welcome page, not the Member Home or the older welcome tour');
+assert.equal(again.S.stack.length,0);
+console.log('Onboarding completion opens Circles and preserves companion validation; back from step 1 returns to where setup began; replay opens the welcome page.');

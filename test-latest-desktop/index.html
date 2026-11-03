@@ -4882,7 +4882,8 @@ const actions = {
     render(); if (world) world.anim.pop = world.time;
   },
   toast(v) { toast(t(v), v === "waitlisted" ? "check" : "learn"); render(); },
-  replay() { Object.assign(S, { screen: "onboard", step: 0, tour: 0, stack: [], saidHi: false, companionChosen: false, petName: "" }); render(true); },
+  // Replay starts where a new visitor starts today: the public welcome page, signed out of the sample.
+  replay() { Object.assign(S, { member: false, screen: "home", step: 0, tour: 0, stack: [], appTour: null, saidHi: false, companionChosen: false, petName: "" }); render(true); },
   talk(i) {
     const n = TALK[S.talk.shown] && TALK[S.talk.shown]();
     const o = n && n.opts && n.opts[+i];
