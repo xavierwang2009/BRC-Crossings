@@ -4,17 +4,17 @@ A clickable prototype of the community app for Bridge River Counseling (Dallas &
 
 ## Quick start
 
-### ▶ [Open the prototype](https://xavierwang2009.github.io/BRC-Crossings/)
+### ▶ [Open the prototype](https://xavierwang2009.github.io/BRC-Crossings/test-latest/)
 
 Runs in any modern browser, on a phone or a computer. Nothing to install.
 
 Jump straight to a screen:
 
-- [Home, skipping sign-up](https://xavierwang2009.github.io/BRC-Crossings/?skip=1)
-- [Check in with your Companion](https://xavierwang2009.github.io/BRC-Crossings/?screen=companion)
-- [A good evening: rabbit with a hat, lantern and bridge lights](https://xavierwang2009.github.io/BRC-Crossings/?skip=1&checkedin=1&mood=great&time=22&species=rabbit&wear=hat,lantern,bridge)
-- [A hard day: rain at dusk, with comfort and breathing](https://xavierwang2009.github.io/BRC-Crossings/?screen=companion&checkedin=1&mood=sad&time=18.8)
-- [繁體中文](https://xavierwang2009.github.io/BRC-Crossings/?lang=ht) · [简体中文](https://xavierwang2009.github.io/BRC-Crossings/?lang=hs)
+- [Home, skipping sign-up](https://xavierwang2009.github.io/BRC-Crossings/test-latest/?skip=1)
+- [Check in with your Companion](https://xavierwang2009.github.io/BRC-Crossings/test-latest/?screen=companion)
+- [A good evening: rabbit with a hat, lantern and bridge lights](https://xavierwang2009.github.io/BRC-Crossings/test-latest/?skip=1&checkedin=1&mood=great&time=22&species=rabbit&wear=hat,lantern,bridge)
+- [A hard day: rain at dusk, with comfort and breathing](https://xavierwang2009.github.io/BRC-Crossings/test-latest/?screen=companion&checkedin=1&mood=sad&time=18.8)
+- [繁體中文](https://xavierwang2009.github.io/BRC-Crossings/test-latest/?lang=ht) · [简体中文](https://xavierwang2009.github.io/BRC-Crossings/test-latest/?lang=hs)
 - [Original v1 prototype, with three layout variants](https://xavierwang2009.github.io/BRC-Crossings/prototype-v1/)
 
 Things to try:
