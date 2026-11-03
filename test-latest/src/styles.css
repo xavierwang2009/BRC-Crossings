@@ -728,3 +728,11 @@ button.li:hover { background: #f5faf7; }
 .app-tour-music { margin-top:12px; }
 
 .app-tour-overlay.app-tour-card-top { align-items:flex-start; }
+
+/* Language is available before sign-in and in the first tour step. */
+.home-languages { display:flex; align-items:center; gap:4px; }
+.home-language-label { margin-right:auto; color:#58665e; font:700 12px var(--body); }
+.home-languages button { min-width:42px; min-height:36px; padding:4px 9px; border:1px solid transparent; border-radius:8px; background:transparent; color:var(--forest); font:800 13px var(--body); cursor:pointer; }
+.home-languages button[aria-pressed="true"] { background:#e1eee3; border-color:#b9d1bd; }
+.home-languages button:focus-visible { outline:2px solid var(--forest); outline-offset:2px; }
+.app-tour-card .home-languages { margin-top:10px; }

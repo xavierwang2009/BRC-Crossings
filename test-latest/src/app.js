@@ -570,8 +570,11 @@ function heroFeatureCopy() {
   const feature = HOME_FEATURES[S.heroFeature];
   return `<h2><span>${t(feature.title)}</span></h2><p>${t(feature.body)}</p>`;
 }
+function homeLanguages() {
+  return `<div class="home-languages" role="group" aria-label="${t("language")}"><span class="home-language-label">${t("language")}</span>${[["en", "EN", "English"], ["ht", "繁", "繁體中文"], ["hs", "简", "简体中文"]].map(([id, label, name]) => `<button type="button" data-a="lang" data-v="${id}" aria-label="${name}" aria-pressed="${S.lang === id}">${label}</button>`).join("")}</div>`;
+}
 function homeHero() {
-  return `<section class="home-feature-hero" aria-label="${t("hero_label")}"><div class="home-brand"><img src="${window.BRC_LOGO}" alt="Bridge River Counseling logo" width="56" height="56"><div><b>BRC Crossings <span lang="zh-Hant">同渡</span></b><p>${t("welcome_sub")}</p></div></div><h1><span class="home-masked-title">${t("hero_title")}</span></h1>
+  return `<section class="home-feature-hero" aria-label="${t("hero_label")}"><div class="home-brand"><img src="${window.BRC_LOGO}" alt="Bridge River Counseling logo" width="56" height="56"><div><b>BRC Crossings <span lang="zh-Hant">同渡</span></b><p>${t("welcome_sub")}</p></div></div>${homeLanguages()}<h1><span class="home-masked-title">${t("hero_title")}</span></h1>
     <div class="orbit-container feature-orbit" data-draggable>
       <svg class="orbit-path-svg" data-orbit-svg aria-hidden="true"><path data-orbit-path data-orbit-stroke d="M 100 300 A 200 80 0 1 0 500 300 A 200 80 0 1 0 100 300" transform="rotate(-8 300 300)" fill="none" stroke="#cbd2c9" /></svg>
       ${HOME_FEATURES.map((f,i) => `<div class="orbit-item" data-orbit-item="${i}" data-clickable role="button" tabindex="0" aria-label="${t(f.title)}"><div class="orbit-item-inner"><span class="feature-photo${f.image ? ` feature-photo-${f.image}` : ""}" style="background-position:${f.position}" role="img" aria-label="${t(f.title)}"></span><span class="feature-label">${t(f.label)}</span></div></div>`).join("")}
@@ -930,7 +933,7 @@ function appTourPanel() {
   const index = S.appTour, step = APP_TOUR[index];
   return `<div class="app-tour-overlay"><div class="app-tour-spotlight" aria-hidden="true"></div><section class="app-tour-card" role="dialog" aria-modal="true" aria-labelledby="app-tour-title" aria-describedby="app-tour-body">
     <div class="app-tour-top"><span>${t("app_tour_demo")}</span><span>${t("app_tour_step", {n:index + 1, total:APP_TOUR.length})}</span></div>
-    <h2 id="app-tour-title">${t(step[1])}</h2><p id="app-tour-body">${t(step[2])}</p>${step[1] === "app_tour_music" ? `<button class="btn quiet app-tour-music" data-a="music">${t(backgroundMusic ? "music_pause" : "music_play")}</button>` : ""}
+    ${index === 0 ? homeLanguages() : ""}<h2 id="app-tour-title">${t(step[1])}</h2><p id="app-tour-body">${t(step[2])}</p>${step[1] === "app_tour_music" ? `<button class="btn quiet app-tour-music" data-a="music">${t(backgroundMusic ? "music_pause" : "music_play")}</button>` : ""}
     <div class="app-tour-actions"><button class="app-tour-exit" data-a="appTourExit">${t("app_tour_skip")}</button>${index ? `<button class="btn quiet" data-a="appTourMove" data-v="-1">${t("app_tour_previous")}</button>` : ""}<button class="btn primary" data-a="appTourMove" data-v="1" data-autofocus>${t(index === APP_TOUR.length - 1 ? "app_tour_finish" : "app_tour_next")}</button></div>
   </section></div>`;
 }
