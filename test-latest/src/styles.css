@@ -754,3 +754,13 @@ button.li:hover { background: #f5faf7; }
 .feed-empty p:last-child { margin: 0; }
 .feed-note { display: flex; gap: 6px; align-items: flex-start; margin: -4px var(--gut) var(--gap); font: 600 var(--fs-s)/1.4 var(--body); color: var(--ink-2); }
 .feed-note .ic { width: 16px; height: 16px; margin-top: 2px; color: var(--river-ink); }
+
+/* Stepped help: the Help pill asks first; a one-tap emergency line closes every level. */
+.help-pick { margin: 4px 0 4px; }
+.help-opt .ic:first-child { color: var(--river-ink); }
+.help-opt.crisis .ic:first-child { color: var(--berry-ink); }
+.help-opt.crisis .t b { color: var(--berry-ink); }
+.sheet .list { margin: 0 0 12px; }
+.help-danger { display: flex; align-items: center; gap: 8px; min-height: 44px; margin: 10px 2px 2px; color: var(--berry-ink); font: 700 var(--fs-s)/1.3 var(--body); text-decoration: none; }
+.help-danger .ic { width: 18px; height: 18px; }
+a.help-danger:hover span { text-decoration: underline; }

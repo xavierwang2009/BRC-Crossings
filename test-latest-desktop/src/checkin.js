@@ -208,7 +208,7 @@ function phqResult() {
   const b = PHQ9_BANDS.findIndex(x => score >= x.min && score <= x.max);
   const flagged = phqFlag(), hardLife = p.func >= 2;
   const urgent = b >= 2 || flagged || hardLife;
-  const lines = !flagged && b === 4 ? `<div class="panel care in">${findHelpList()}<p class="muted">${S.state === "INTL" ? t("crisis_note_intl") : t("crisis_note")}</p></div>` : "";
+  const lines = !flagged && b === 4 ? `<div class="panel care in">${findHelpList("reach")}<p class="muted">${S.state === "INTL" ? t("crisis_note_intl") : t("crisis_note")}</p></div>` : "";
   return `${hdrSub(t("result_title"))}<div class="scroll d-split"><div class="d-lead">
     ${flagged ? `<div style="height:14px"></div>${helpPanel("safe9_title", "safe9_body")}` : ""}
     <div style="height:${flagged ? 18 : 30}px"></div>${pebbleSays("p_r_done", { flat: true, note: urgent })}

@@ -1,0 +1,17 @@
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const vm = require('node:vm');
+const content = fs.readFileSync(__dirname + '/../src/content.js', 'utf8');
+const app = fs.readFileSync(__dirname + '/../src/app.js', 'utf8');
+const lines = content.slice(content.indexOf('const CRISIS_LINES'), content.indexOf('/* Risk screening'));
+const list = app.slice(app.indexOf('function findHelpList('), app.indexOf('function guide()'));
+const S = { state: 'TX', lang: 'en' };
+const ctx = vm.createContext({ S, t: k => k, L: o => o.en, icon: () => '' });
+vm.runInContext(lines + list + ';this.findHelpList = findHelpList;', ctx);
+const nums = html => [...html.matchAll(/class="num"[^>]*>([^<]+)</g)].map(m => m[1]);
+assert.deepEqual(nums(ctx.findHelpList()), ['988', '214-828-1000', '911'], 'Crisis level: 988 first, local crisis center, 911 last');
+assert.deepEqual(nums(ctx.findHelpList('reach')), ['988'], 'Talk-to-someone level offers 988 only, not 911');
+assert.match(ctx.findHelpList('reach'), /line_988_reach/);
+S.state = 'WA'; assert.deepEqual(nums(ctx.findHelpList()), ['988', '911']);
+S.state = 'INTL'; assert.match(ctx.findHelpList(), /findahelpline/);
+console.log('Help checks passed: crisis lines put 988 first and 911 last; the talk-to-someone level offers 988 only.');

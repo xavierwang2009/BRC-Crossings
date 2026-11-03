@@ -268,6 +268,20 @@ const I18N = {
   learn: { en: "Learn", ht: "學習", hs: "学习" },
   help: { en: "Help", ht: "求助", hs: "求助" },
   help_now: { en: "Get help now", ht: "立即求助", hs: "立即求助" },
+  help_ask: { en: "What kind of help do you need right now?", ht: "你現在需要哪一種幫助？", hs: "你现在需要哪一种帮助？" },
+  help_opt_calm: { en: "I'd like to calm down or feel a little better", ht: "我想平靜下來，讓自己好一點", hs: "我想平静下来，让自己好一点" },
+  help_opt_talk: { en: "I'm having a hard time and want to talk to someone", ht: "我很難受，想找人談談", hs: "我很难受，想找人谈谈" },
+  help_opt_danger: { en: "I might hurt myself, or I'm in danger", ht: "我可能會傷害自己，或我有危險", hs: "我可能会伤害自己，或我有危险" },
+  help_calm_title: { en: "Let's take it slowly", ht: "我們慢慢來", hs: "我们慢慢来" },
+  help_calm_body: { en: "A few small things that can help right now.", ht: "現在就能做的幾件小事。", hs: "现在就能做的几件小事。" },
+  help_breathe: { en: "Breathe with {pet}", ht: "和 {pet} 一起呼吸", hs: "和 {pet} 一起呼吸" },
+  help_reach_title: { en: "Talk with someone", ht: "找人談談", hs: "找人谈谈" },
+  help_reach_body: { en: "Your Counselor guide replies within 2 business days. If you'd like to talk sooner, 988 is there 24/7 for any kind of distress.", ht: "你的輔導師嚮導會在 2 個工作天內回覆。如果想早點有人陪你談，988 全天候開放，任何情緒困擾都可以聯絡。", hs: "你的咨询师向导会在 2 个工作日内回复。如果想早点有人陪你谈，988 全天候开放，任何情绪困扰都可以联系。" },
+  help_crisis_body: { en: "Please reach out now. These lines are free, confidential and open 24/7.", ht: "請現在就聯絡。這些專線免費、保密，全天候開放。", hs: "请现在就联系。这些热线免费、保密，全天候开放。" },
+  help_other: { en: "Other kinds of help", ht: "其他協助方式", hs: "其他协助方式" },
+  help_danger_now: { en: "In danger right now? Call 911", ht: "現在有危險？請撥打 911", hs: "现在有危险？请拨打 911" },
+  help_danger_intl: { en: "In danger right now? Call your local emergency number.", ht: "現在有危險？請撥打當地緊急電話。", hs: "现在有危险？请拨打当地紧急电话。" },
+  line_988_reach: { en: "Call or text to talk with someone, 24/7. Not only for emergencies.", ht: "電話或簡訊，全天候有人陪你談。不只限於緊急情況。", hs: "电话或短信，全天候有人陪你谈。不只限于紧急情况。" },
   back: { en: "Back", ht: "返回", hs: "返回" },
   seeds_label: { en: "RiverSeeds: {n}", ht: "河之種：{n}", hs: "河之种：{n}" },
   community: { en: "Community", ht: "社群", hs: "社区" },
@@ -705,13 +719,15 @@ const BADGES = [
   { id: "thirty", icon: "calendar", en: "30 check-ins", ht: "記錄 30 次", hs: "记录 30 次" },
 ];
 
-/* Crisis lines by Member location. The Chinese-language line stays hidden until a partner is confirmed. */
+/* Crisis lines by Member location, in the order to offer them when someone may be at risk:
+   988 first, then a local crisis center, then 911 for immediate danger.
+   The Chinese-language line stays hidden until a partner is confirmed. */
 const CRISIS_LINES = {
   "911": { n: "911", call: "911", d: { en: "Emergency: danger to life", ht: "緊急情況：生命危險", hs: "紧急情况：生命危险" } },
   "988": { n: "988", call: "988", d: { en: "Suicide & Crisis Lifeline · call or text, 24/7", ht: "自殺與危機專線 · 電話或簡訊，全天候", hs: "自杀与危机热线 · 电话或短信，全天候" } },
   dallas: { n: "214-828-1000", call: "2148281000", d: { en: "Dallas Suicide & Crisis Center", ht: "達拉斯自殺與危機中心", hs: "达拉斯自杀与危机中心" } },
 };
-const LINES_FOR = { TX: ["911", "988", "dallas"], WA: ["911", "988"], AR: ["911", "988"], VA: ["911", "988"], OTHER: ["911", "988"] };
+const LINES_FOR = { TX: ["988", "dallas", "911"], WA: ["988", "911"], AR: ["988", "911"], VA: ["988", "911"], OTHER: ["988", "911"] };
 
 /* Risk screening for posts, replies and DMs. English matches whole phrases, so
    "recommend it" or "spend it" never trigger a hold. Prototype only: the real app

@@ -341,7 +341,7 @@ const O = {
   thanks: () => ({ label: tt("o_thanks"), go: () => { if (world) world.sit(false); talkTo("bye"); } }),
   breathe: (k = "o_breathe") => ({ label: tt(k), icon: "wind", kind: "primary", go: startBreathe }),
   sit: (k = "o_sit") => ({ label: tt(k), icon: "heart", go: () => { if (world) { world.sit(true); world.emote("comfort"); } talkTo("sit"); } }),
-  help: (k = "o_help") => ({ label: tt(k), icon: "help", kind: "help", go: () => { S.crisis = "help"; render(); } }),
+  help: (k = "o_help", level = "reach") => ({ label: tt(k), icon: "help", kind: "help", go: () => { S.crisis = level; render(); } }),
   later: () => ({ label: tt("o_later"), go: () => talkTo("bye") }),
   read: () => ({ label: tt("o_read"), icon: "learn", go: () => go("learn") }),
   next: node => ({ label: tt("o_next"), kind: "primary", go: () => talkTo(node) }),
@@ -378,7 +378,7 @@ const TALK = {
   bye: () => ({ text: tt("bye"), emote: "nod", opts: [{ label: tt("o_talk"), icon: "chat", go: () => talkTo(S.checkedIn ? "play" : "hello") }] }),
   after_breathe: () => ({ text: tt("after_breathe"), emote: "nod", opts: [O.breathe("o_again"), O.thanks()] }),
   posted: () => ({ text: tt("posted"), emote: "cheer", opts: [O.thanks()] }),
-  after_hold: () => ({ text: tt("after_hold"), emote: "comfort", opts: [O.help("o_help_lines"), O.sit(), guideOpt()].filter(Boolean), note: true }),
+  after_hold: () => ({ text: tt("after_hold"), emote: "comfort", opts: [O.help("o_help_lines", "crisis"), O.sit(), guideOpt()].filter(Boolean), note: true }),
   nudge_answer: () => ({ text: tt("nudge_answer"), emote: "tilt", opts: [{ label: tt("o_read_it"), icon: "shield", kind: "primary", go: () => actions.thread("p1") }, O.later()] }),
   nudge_guide: () => ({ text: tt("nudge_guide"), emote: "wave", opts: [{ label: tt("o_show"), icon: "shield", kind: "primary", go: () => go("guide") }, O.later()] }),
   nudge_circle: () => ({ text: tt("nudge_circle"), emote: "tilt", opts: [{ label: tt("o_peek"), icon: "circles", kind: "primary", go: () => actions.circle("c1") }, O.later()] }),
@@ -727,10 +727,12 @@ function thread() {
     <div class="as-wrap"><div class="as">${icon(S.replyPersona === "anon" || !me ? "mask" : "me")}<span>${t("replying_as", { who: esc(who) })}</span>${me ? `<button data-a="replyPersona">${icon("swap")}${t("switch_identity")}</button>` : ""}</div>
     <div class="composer"><input placeholder="${t("reply_placeholder")}" data-model="replyDraft" value="${esc(S.replyDraft)}" aria-label="${t("reply")}"><button class="btn primary" data-a="reply" aria-label="${t("reply")}">${icon("send")}</button></div></div>`;
 }
-function findHelpList() {
+/* Help lines at two levels: "crisis" lists every line for the Member's location (988 first, 911 last);
+   "reach" offers only 988, framed as someone to talk to, not an emergency. */
+function findHelpList(level = "crisis") {
   if (S.state === "INTL") return `<a class="line" href="https://findahelpline.com" target="_blank" rel="noopener"><span class="t"><span class="num">${t("intl_help")}</span><small>${t("intl_help_sub")}</small></span><span class="call ext">${icon("external")}</span></a>`;
-  const ids = LINES_FOR[S.state] || LINES_FOR.OTHER;
-  const lines = ids.map(id => { const l = CRISIS_LINES[id]; return `<a class="line" href="tel:${l.call}" aria-label="${t("call", { n: l.n })}"><span class="t"><span class="num">${l.n}</span><small>${L(l.d)}</small></span><span class="call">${icon("phone")}</span></a>`; }).join("");
+  const ids = level === "reach" ? ["988"] : LINES_FOR[S.state] || LINES_FOR.OTHER;
+  const lines = ids.map(id => { const l = CRISIS_LINES[id]; return `<a class="line" href="tel:${l.call}" aria-label="${t("call", { n: l.n })}"><span class="t"><span class="num">${l.n}</span><small>${level === "reach" && id === "988" ? t("line_988_reach") : L(l.d)}</small></span><span class="call">${icon("phone")}</span></a>`; }).join("");
   return S.state ? lines : lines + `<a class="line" href="https://findahelpline.com" target="_blank" rel="noopener"><span class="t"><span class="num" style="font-size:var(--fs-m)">${t("intl_help")}</span><small>${t("intl_help_sub")}</small></span><span class="call ext">${icon("external")}</span></a>`;
 }
 function guide() {
@@ -975,14 +977,40 @@ function meScreen() {
     <div class="d-lead"><div class="pad"><button class="btn quiet block" data-a="go" data-v="counselor">Preview counselor workspace</button></div>
     <div class="pad"><button class="btn quiet block" data-a="replay">${t("replay")}</button></div></div></div>`;
 }
+/* Help is stepped to the level of need. The Help pill asks first; Pebble's "talk to someone"
+   opens "reach"; risky words, safety answers and held posts open the crisis lines.
+   Every level keeps a one-tap emergency line at the bottom. */
+function emergencyRow() {
+  return S.state === "INTL" ? `<p class="help-danger">${icon("phone")}<span>${t("help_danger_intl")}</span></p>`
+    : `<a class="help-danger" href="tel:911">${icon("phone")}<span>${t("help_danger_now")}</span></a>`;
+}
 function crisisSheet() {
   const ctx = S.crisis;
   const c = counselor(S.match) || COUNSELORS[0];
-  const title = ctx === "held" ? t("held_title") : ctx === "dm" ? t("dm_held_title") : t("crisis_title");
-  const body = ctx === "held" ? t("held_body") : ctx === "dm" ? t("dm_held_body", { c: c.name.split(",")[0] }) : (S.state === "INTL" ? t("crisis_note_intl") : t("crisis_note"));
-  return `<div class="sheet-bg" data-a="closeCrisis"><div class="sheet" role="dialog" aria-modal="true" aria-label="${title}" data-stop>
-    <div class="grab"></div><h2>${title}</h2><p>${body}</p>${findHelpList()}
-    ${ctx !== "help" ? `<p class="muted" style="margin-top:10px">${S.state === "INTL" ? t("crisis_note_intl") : t("crisis_note")}</p>` : ""}
+  const note = `<p class="muted" style="margin-top:10px">${S.state === "INTL" ? t("crisis_note_intl") : t("crisis_note")}</p>`;
+  const other = `<button class="btn ghost block" data-a="helpLevel" data-v="help">${t("help_other")}</button>`;
+  const row = (v, ic, label) => `<button class="li" data-a="helpGo" data-v="${v}">${icon(ic)}<span class="t"><b>${label}</b></span>${icon("chev")}</button>`;
+  let title, inner;
+  if (ctx === "help") {
+    title = t("help_ask");
+    inner = `<div class="name-pick help-pick">${[["calm", "help_opt_calm", "sun"], ["reach", "help_opt_talk", "chat"], ["crisis", "help_opt_danger", "help"]].map(([v, k, ic]) =>
+      `<button class="who-opt help-opt ${v}" data-a="helpLevel" data-v="${v}">${icon(ic)}<span class="t"><b>${t(k)}</b></span>${icon("chev")}</button>`).join("")}</div>${emergencyRow()}`;
+  } else if (ctx === "calm") {
+    title = t("help_calm_title");
+    inner = S.member ? `<p>${t("help_calm_body")}</p><div class="list">${row("breathe", "wind", t("help_breathe", { pet: esc(S.petName || t("companion")) }))}${row("learn", "learn", t("practice_library"))}${row("compose", "ask", t("ask_community"))}</div>${emergencyRow()}${other}`
+      : `<p>${t("help_reach_body")}</p>${findHelpList("reach")}${emergencyRow()}${other}`;
+  } else if (ctx === "reach") {
+    title = t("help_reach_title");
+    const guideRow = S.member && licensedHere() ? row("guide", S.match ? "chat" : "shield", S.match ? L(TT.o_msg_guide) : t("find_guide")) : "";
+    const book = S.member && licensedHere() ? clinicRow() : "";
+    inner = `<p>${t("help_reach_body")}</p>${guideRow || book ? `<div class="list">${guideRow}${book}</div>` : ""}${findHelpList("reach")}${emergencyRow()}${other}`;
+  } else {
+    title = ctx === "held" ? t("held_title") : ctx === "dm" ? t("dm_held_title") : t("crisis_title");
+    const body = ctx === "held" ? t("held_body") : ctx === "dm" ? t("dm_held_body", { c: c.name.split(",")[0] }) : t("help_crisis_body");
+    inner = `<p>${body}</p>${findHelpList()}${note}${ctx === "crisis" ? other : ""}`;
+  }
+  return `<div class="sheet-bg" data-a="closeCrisis"><div class="sheet help-${ctx}" role="dialog" aria-modal="true" aria-label="${title}" data-stop>
+    <div class="grab"></div><h2>${title}</h2>${inner}
     <button class="btn quiet block" style="margin-top:6px" data-a="closeCrisis">${t("close")}</button></div></div>`;
 }
 
@@ -1193,6 +1221,8 @@ const actions = {
   back() { back(); },
   crisis() { S.crisis = "help"; render(); },
   closeCrisis() { S.crisis = null; render(); },
+  helpLevel(v) { S.crisis = v; render(); },
+  helpGo(v) { S.crisis = null; if (v === "breathe") { startBreathe(); return; } go(v === "guide" ? (S.match ? "dm" : "guide") : v); },
   thread(v) { S.seen[v] = true; go("thread", { thread: v }); },
   circle(v) { go("circle", { circle: v }); },
   translate(v) { S.translated[v] = !S.translated[v]; render(); },
