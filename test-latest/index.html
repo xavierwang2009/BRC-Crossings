@@ -4827,7 +4827,6 @@ if (params.get("away") === "1") S.away = true;
 if (params.get("name") !== null) S.realName = params.get("name");
 if (params.get("show")) S.nameShow = displayName(params.get("show")) ? params.get("show") : "anon";
 if (params.get("talk")) S.talk.node = params.get("talk");
-if (S.screen === "home" && params.get("skip") !== "1" && !S.crisis) S.appTour = 0;
 render(true);
 startDefaultMusic();
 window.addEventListener("companion-ready", initWorld);
