@@ -1,0 +1,14 @@
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const vm = require('node:vm');
+const source = fs.readFileSync(__dirname + '/../src/app.js', 'utf8');
+const next = source.slice(source.indexOf('  next() {'), source.indexOf('  prev() {'));
+const ctx = vm.createContext({ S: { step:5, companionChosen:true, petName:'Pebble', mainFocus:'parenting', screen:'onboard', stack:[{screen:'home'}] }, world:null, render(){}, toast(){}, t:key=>key });
+vm.runInContext('const actions = {' + next + '}; actions.next();',ctx);
+assert.equal(ctx.S.screen,'circles','Enter the community should open Circles, not the public Home');
+assert.equal(ctx.S.stack.length,0);
+assert.equal(ctx.S.draftFocus,'parenting');
+ctx.S.screen='onboard'; ctx.S.petName='';
+vm.runInContext('actions.next()',ctx);
+assert.equal(ctx.S.screen,'onboard');
+console.log('Onboarding completion opens Circles and preserves companion validation.');

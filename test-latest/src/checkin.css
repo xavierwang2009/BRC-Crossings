@@ -1,0 +1,42 @@
+/* Daily check-in and voluntary mood screening. */
+
+.testbar { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex: none; min-height: 40px; padding: 3px 10px 3px var(--gut); background: var(--sun-soft); color: var(--sun-ink); font: 700 12.5px/1.25 var(--body); }
+.testbar .langs { display: flex; gap: 2px; flex: none; }
+.testbar button { min-width: 36px; height: 34px; border: 0; border-radius: 999px; background: transparent; color: var(--sun-ink); font: 800 12.5px/1 var(--body); cursor: pointer; }
+.testbar button.on { background: var(--sun-ink); color: var(--sun-soft); }
+.flow-prog { flex: none; display: flex; flex-direction: column; gap: 6px; padding: 12px var(--gut) 0; font: 700 var(--fs-s)/1.3 var(--body); color: var(--ink-2); }
+.flow-prog .progress { flex: none; }
+.flow { padding-top: 14px; }
+.ask-stem { margin: 0 0 8px; font: 700 var(--fs-s)/1.45 var(--body); color: var(--ink-2); text-wrap: pretty; }
+.ask-q { margin: 0 0 16px; font: 600 var(--fs-l)/1.3 var(--display); color: var(--forest); text-wrap: pretty;  }
+.ask-sub { margin: -8px 0 16px; }
+.ask-sub .ic { width: 18px; height: 18px; flex: none; margin-top: 1px; }
+.flow .who-opt .t b { font-size: var(--fs-m); }
+.test-box { margin-top: 26px; padding: 12px; border-radius: var(--r-s); border: 1.5px dashed #c9a94a; background: var(--sun-soft); }
+.test-box .label { color: var(--sun-ink); }
+.panel.care { background: var(--berry-soft); box-shadow: none; }
+.panel.care .panel-h { color: var(--berry-ink); margin-bottom: 8px; }
+.panel.care > p { margin: 0 0 12px; color: var(--ink); }
+.panel.care > p.muted { margin: 4px 2px 0; color: var(--ink-2); }
+.panel.care .line:last-of-type { margin-bottom: 8px; }
+.stage.done { height: 270px; }
+.talk.flat { margin-top: 0; }
+.talk.flat .talk-box::before { display: none; }
+a.li { color: var(--ink); text-decoration: none; }
+.score { display: flex; align-items: baseline; gap: 6px; margin-bottom: 12px; }
+.score span { flex: 1; font: 700 var(--fs-s)/1.3 var(--body); color: var(--ink-2); }
+.score b { font: 600 var(--fs-xl)/1 var(--display); color: var(--forest); }
+.score i { font: 700 var(--fs-m)/1 var(--body); color: var(--ink-2); }
+.bands { list-style: none; margin: 0 0 14px; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+.bands li { display: flex; align-items: center; gap: 10px; min-height: 36px; padding: 4px 10px; border-radius: 10px; color: var(--ink-2); font-size: var(--fs-s); font-weight: 600; }
+.bands li.on { min-height: 44px; background: var(--mist); box-shadow: inset 0 0 0 2px var(--forest); color: var(--forest); font-weight: 800; }
+.bands .rng { flex: none; width: 46px; font-variant-numeric: tabular-nums; }
+.bands .nm { flex: 1; min-width: 0; }
+.r-plain { margin: 0 0 10px; font-size: var(--fs-m); color: var(--ink); text-wrap: pretty; }
+.answers { padding: 4px 0 2px; }
+.answers summary { min-height: 44px; display: flex; align-items: center; gap: 6px; cursor: pointer; font: 800 var(--fs-s)/1.3 var(--body); color: var(--forest); }
+.answers ol { margin: 8px 0 12px; padding-left: 20px; }
+.answers li { margin-bottom: 10px; color: var(--ink); font-size: var(--fs-s); }
+.answers li small { display: block; color: var(--ink-2); font-size: var(--fs-s); }
+.credit { margin: 8px 0 0; font-size: 12px; line-height: 1.45; color: var(--ink-3); }
+
