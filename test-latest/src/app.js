@@ -17,7 +17,7 @@ const S = {
   crisis: null, toast: null, posted: false, replyDraft: "", breathing: false, petHinted: false, timeOverride: null, enter: null,
   realName: "", nameShow: "anon", history: [], streakGoal: 7, activityDay: null,
   practiceQuery: "", practiceTopic: "", practiceDuration: "", practiceLanguage: "", savedPractices: [], savedOnly: false, practice: null,
-  heroFeature: 0, heroPaused: false,
+  heroFeature: 0, heroPaused: false, appTour: null,
   daily: newDaily(), phq: null, phqSample: null, dMedNote: "", dLine: "", checkinSafety: false, phqSafety: false,
   care: null, careShareMode: "moment", journalDraft: "", journalEntries: [], careSound: null, careVolume: 20,
   friendships: {}, friendRecipient: null, friendMessages: {}, friendDrafts: {},
@@ -577,7 +577,7 @@ function homeHero() {
       ${HOME_FEATURES.map((f,i) => `<div class="orbit-item" data-orbit-item="${i}" data-clickable role="button" tabindex="0" aria-label="${t(f.title)}"><div class="orbit-item-inner"><span class="feature-photo${f.image ? ` feature-photo-${f.image}` : ""}" style="background-position:${f.position}" role="img" aria-label="${t(f.title)}"></span><span class="feature-label">${t(f.label)}</span></div></div>`).join("")}
       <div class="orbit-center-content" data-orbit-center></div>
     </div><div class="hero-orbit-controls"><button type="button" data-hero-step="-1" aria-label="${t("tour_previous")}">${icon("back")}</button><div class="hero-dots">${HOME_FEATURES.map((f,i) => `<button type="button" data-hero-index="${i}" aria-label="${t(f.title)}" aria-pressed="${S.heroFeature === i}"></button>`).join("")}</div><button type="button" data-hero-step="1" aria-label="${t("tour_next")}">${icon("chev")}</button><button type="button" data-hero-pause>${t(S.heroPaused ? "hero_resume" : "hero_pause")}</button></div>
-    <div class="hero-feature-copy" aria-live="polite" aria-atomic="true">${heroFeatureCopy()}</div><button class="btn primary block star-border" data-a="getStarted"><canvas class="star-border__light" aria-hidden="true"></canvas>${t("get_started")}</button><button class="btn quiet block star-border" data-a="signin"><canvas class="star-border__light" aria-hidden="true"></canvas>${t("hero_signin")}</button></section>`;
+    <div class="hero-feature-copy" aria-live="polite" aria-atomic="true">${heroFeatureCopy()}</div><button class="btn primary block star-border" data-a="getStarted"><canvas class="star-border__light" aria-hidden="true"></canvas>${t("get_started")}</button><button class="btn quiet block star-border" data-a="signin"><canvas class="star-border__light" aria-hidden="true"></canvas>${t("hero_signin")}</button><button class="app-tour-launch" data-a="appTourStart">${t("app_tour_start")}</button></section>`;
 }
 function mountHomeHero() {
   const root = document.querySelector('.feature-orbit');
@@ -910,6 +910,33 @@ function crisisSheet() {
     <button class="btn quiet block" style="margin-top:6px" data-a="closeCrisis">${t("close")}</button></div></div>`;
 }
 
+const APP_TOUR = [
+  ["home", "app_tour_welcome", "app_tour_welcome_body"],
+  ["home", "app_tour_music", "app_tour_music_body"],
+  ["home", "app_tour_rotation", "app_tour_rotation_body"],
+  ["home", "app_tour_entry", "app_tour_entry_body"],
+  ["circles", "app_tour_circles", "app_tour_circles_body"],
+  ["ask", "app_tour_ask", "app_tour_ask_body"],
+  ["compose", "app_tour_post", "app_tour_post_body"],
+  ["friends", "app_tour_friends", "app_tour_friends_body"],
+  ["guide", "app_tour_guide", "app_tour_guide_body"],
+  ["companion", "app_tour_companion", "app_tour_companion_body"],
+  ["companion", "app_tour_care", "app_tour_care_body"],
+  ["learn", "app_tour_library", "app_tour_library_body"],
+  ["activity", "app_tour_activity", "app_tour_activity_body"],
+  ["shop", "app_tour_shop", "app_tour_shop_body"],
+  ["me", "app_tour_profile", "app_tour_profile_body"],
+  ["me", "app_tour_help", "app_tour_help_body"],
+];
+function appTourPanel() {
+  const index = S.appTour, step = APP_TOUR[index];
+  return `<div class="app-tour-overlay"><section class="app-tour-card" role="dialog" aria-modal="true" aria-labelledby="app-tour-title" aria-describedby="app-tour-body">
+    <div class="app-tour-top"><span>${t("app_tour_demo")}</span><span>${t("app_tour_step", {n:index + 1, total:APP_TOUR.length})}</span></div>
+    <h2 id="app-tour-title">${t(step[1])}</h2><p id="app-tour-body">${t(step[2])}</p>
+    <div class="app-tour-actions"><button class="app-tour-exit" data-a="appTourExit">${t("app_tour_skip")}</button>${index ? `<button class="btn quiet" data-a="appTourMove" data-v="-1">${t("app_tour_previous")}</button>` : ""}<button class="btn primary" data-a="appTourMove" data-v="1" data-autofocus>${t(index === APP_TOUR.length - 1 ? "app_tour_finish" : "app_tour_next")}</button></div>
+  </section></div>`;
+}
+
 /* ---------- render ---------- */
 function view() {
   if (S.screen === "onboard") return onboarding();
@@ -928,12 +955,14 @@ function render(nav = false) {
   const sc = document.querySelector("#app .scroll");
   const keep = !nav && sc && lastScreen === S.screen ? sc.scrollTop : 0;
   const active = document.activeElement && document.activeElement.dataset ? document.activeElement.dataset.model : null;
+  const tourFocus = !!document.activeElement?.closest?.(".app-tour-card");
   document.documentElement.dataset.lang = S.lang;
   document.documentElement.lang = S.lang === "en" ? "en" : zhTag();
   syncWorld();
   let html = musicControls() + view();
   if (["daily", "dailyDone", "phqIntro", "phq", "phqResult"].includes(S.screen)) html = testBar() + html;
   if (S.screen !== "home" && S.screen !== "onboard" && !NO_TAB_BAR.includes(S.screen)) html += tabs(sectionTab());
+  if (S.appTour !== null) html += appTourPanel();
   if (S.crisis) html += crisisSheet();
   if (S.toast) html += `<div class="toast" role="status">${icon(S.toast.ic)}${esc(S.toast.msg)}</div>`;
   $("#app").innerHTML = html;
@@ -946,7 +975,7 @@ function render(nav = false) {
   const nsc = document.querySelector("#app .scroll");
   if (nsc) { nsc.style.scrollBehavior = "auto"; nsc.scrollTop = ["dm", "friendDm"].includes(S.screen) ? nsc.scrollHeight : keep; nsc.style.scrollBehavior = ""; }
   if (active) { const el = document.querySelector(`[data-model="${active}"]`); if (el) { el.focus(); const v = el.value; el.value = ""; el.value = v; } }
-  if (nav) document.querySelector("#app [data-autofocus]")?.focus({ preventScroll: true });
+  if (nav || (tourFocus && S.appTour !== null)) document.querySelector("#app [data-autofocus]")?.focus({ preventScroll: true });
   lastScreen = S.screen; S.enter = null;
   runTypewriter();
 
@@ -985,6 +1014,9 @@ function renderNotes() {
 
 /* ---------- actions ---------- */
 const actions = {
+  appTourStart() { S.appTour = 0; S.stack = []; S.screen = APP_TOUR[0][0]; render(true); },
+  appTourExit() { S.appTour = null; S.screen = "home"; S.stack = []; render(true); document.querySelector('[data-a="appTourStart"]')?.focus(); },
+  appTourMove(v) { const next = S.appTour + Number(v); if (next >= APP_TOUR.length) { actions.appTourExit(); return; } S.appTour = next; S.screen = APP_TOUR[next][0]; S.stack = []; render(true); },
   ...CHECKIN_ACTIONS,
   music() { toggleBackgroundMusic(); },
   cwTab(tab) { CW.tab = tab; CW.selected = null; render(true); },
@@ -1128,6 +1160,18 @@ const actions = {
   },
 };
 
+document.addEventListener("keydown", e => {
+  if (S.appTour === null) return;
+  if (e.key === "Escape") { e.preventDefault(); actions.appTourExit(); return; }
+  if (e.key === "Tab") {
+    const buttons = [...document.querySelectorAll(".app-tour-card button")];
+    const current = buttons.indexOf(document.activeElement);
+    if ((e.shiftKey && current <= 0) || (!e.shiftKey && (current < 0 || current === buttons.length - 1))) {
+      e.preventDefault(); buttons[e.shiftKey ? buttons.length - 1 : 0].focus();
+    }
+  }
+});
+
 document.addEventListener("click", e => {
   const tb = e.target.closest("[data-time]");
   if (tb) { S.timeOverride = tb.dataset.time === "" ? null : +tb.dataset.time; if (!S.checkedIn && !S.away) talkTo(talkStart(), { silent: true }); render(); return; }
@@ -1205,7 +1249,9 @@ if (params.get("away") === "1") S.away = true;
 if (params.get("name") !== null) S.realName = params.get("name");
 if (params.get("show")) S.nameShow = displayName(params.get("show")) ? params.get("show") : "anon";
 if (params.get("talk")) S.talk.node = params.get("talk");
+if (S.screen === "home" && params.get("skip") !== "1" && !S.crisis) S.appTour = 0;
 render(true);
+startDefaultMusic();
 window.addEventListener("companion-ready", initWorld);
 initWorld();
 

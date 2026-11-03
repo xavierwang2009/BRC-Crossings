@@ -1,5 +1,5 @@
-/* Quiet, locally synthesized ambient music; starts only from a user gesture. */
-let backgroundMusic = null, musicVolume = 40, musicChoice = "piano";
+/* Quiet, locally synthesized music, with a user-gesture fallback for autoplay. */
+let backgroundMusic = null, musicVolume = 15, musicChoice = "piano";
 function musicControls() {
   return `<div class="music-controls"><button type="button" data-a="music" aria-pressed="${!!backgroundMusic}" title="${t('music_note')}">${icon('wind')}<span>${t(backgroundMusic ? 'music_pause' : 'music_play')}</span></button><select id="music-choice" aria-label="${t('music_choice')}">${['piano','ambient'].map(kind=>`<option value="${kind}" ${musicChoice === kind ? 'selected' : ''}>${t('music_'+kind)}</option>`).join('')}</select>${backgroundMusic ? `<label for="music-volume">${t('care_volume')}</label><input id="music-volume" type="range" min="0" max="100" value="${musicVolume}" aria-label="${t('music_volume')}">` : ''}</div>`;
 }
@@ -81,3 +81,18 @@ async function toggleBackgroundMusic() {
 }
 document.addEventListener('visibilitychange',()=>{if(document.hidden && backgroundMusic){stopBackgroundMusic();render();}});
 window.addEventListener('pagehide',stopBackgroundMusic);
+
+function startDefaultMusic() {
+  if (document.hidden || typeof AudioContext === "undefined") return;
+  let probe;
+  try {
+    probe = new AudioContext();
+    if (probe.state === "running") { probe.close().catch(() => {}); toggleBackgroundMusic(); return; }
+    probe.close().catch(() => {});
+  } catch { return; }
+  function startOnInteraction(event) {
+    document.removeEventListener("click", startOnInteraction);
+    if (!event.target.closest?.('[data-a="music"], #music-choice') && !backgroundMusic) toggleBackgroundMusic();
+  }
+  document.addEventListener("click", startOnInteraction);
+}
