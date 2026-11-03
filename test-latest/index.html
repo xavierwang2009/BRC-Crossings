@@ -3043,8 +3043,8 @@ async function toggleBackgroundMusic() {
       while (next < ctx.currentTime + .5) {
         if (piano) {
           const bar = Math.floor(beat/8)%4, step = beat%8, melodyNote = pianoMelody[bar][step];
-          if (melodyNote !== null) pianoNote(melodyNote,next,.17);
-          if (step%2 === 0) pianoNote(pianoChords[bar][step/2],next+.04,.1);
+          if (melodyNote !== null) pianoNote(melodyNote,next,.42);
+          if (step%2 === 0) pianoNote(pianoChords[bar][step/2],next+.04,.20);
         } else {
           note(melody[beat % melody.length],next,3.8,.22);
           if (beat % 4 === 0) chords[Math.floor(beat/4)%chords.length].forEach(hz=>note(hz,next,9,.07));
@@ -3062,15 +3062,9 @@ document.addEventListener('visibilitychange',()=>{if(document.hidden && backgrou
 window.addEventListener('pagehide',stopBackgroundMusic);
 
 function startDefaultMusic() {
-  if (document.hidden || !(window.AudioContext || window.webkitAudioContext)) return;
-  let probe;
-  try {
-    const AudioEngine = window.AudioContext || window.webkitAudioContext;
-    probe = new AudioEngine();
-    if (probe.state === "running") { probe.close().catch(() => {}); toggleBackgroundMusic(); return; }
-    probe.close().catch(() => {});
-  } catch { return; }
+  if (!(window.AudioContext || window.webkitAudioContext)) return;
   function startOnInteraction(event) {
+    if (document.hidden) return;
     document.removeEventListener("click", startOnInteraction);
     if (!event.target.closest?.('[data-a="music"], #music-choice') && !backgroundMusic) toggleBackgroundMusic();
   }
