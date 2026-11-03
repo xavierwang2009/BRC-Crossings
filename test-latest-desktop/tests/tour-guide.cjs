@@ -1,0 +1,16 @@
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const vm = require('node:vm');
+const source = fs.readFileSync('src/app.js', 'utf8');
+const guideSource = source.slice(source.indexOf('function guide() {'), source.indexOf('\nfunction dm()'));
+const state = {appTour:4, screen:'guide', state:null, optMatch:false};
+const ctx = vm.createContext({S:state, COUNSELORS:[{name:'Sample', hue:'#000', langs:'English', bio:{en:'Sample bio'}}], hdrSub:()=>'', t:k=>k, initials:()=> 'S', esc:String, L:o=>o.en, licensedHere:()=>false, findHelpList:()=>'', icon:()=>''});
+vm.runInContext(guideSource, ctx);
+const tour = ctx.guide();
+assert.match(tour, /tour-guide-sample/);
+assert.match(tour, /app_tour_sample_label/);
+assert.equal(state.state, null);
+assert.equal(state.optMatch, false);
+state.appTour = null;
+assert.match(ctx.guide(), /oos_title/);
+console.log('Tour guide sample does not change location or matching consent; normal availability remains intact.');
