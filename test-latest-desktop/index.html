@@ -1007,17 +1007,37 @@ a.li { color: var(--ink); text-decoration: none; }
   .badges { flex-wrap: wrap; overflow: visible; row-gap: 14px; }
 
   /* ---------- the Member's Home: the feed, and a column for today, the guide and friends ---------- */
-  .feed-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(300px, 360px); gap: clamp(32px, 4vw, 56px); align-items: start; padding-top: 8px; }
+  .feed-grid { display: grid; grid-template-columns: minmax(0, 1fr) clamp(250px, 28%, 360px); gap: clamp(32px, 4vw, 56px); align-items: start; padding-top: 8px; }
   .feed-main, .feed-rail { min-width: 0; --gut: 0px; }
   .feed-hello { padding: 18px 0 16px; }
   .feed-hello h1 { font-size: 28px; }
   .feed-rail { padding-top: 22px; }
-  .feed-rail .guide { margin-top: 4px; }
+  .feed-rail .guide { margin-top: 0; }
+  /* The riverbank window: the one live, moving thing on Home. */
+  .home-window { margin: 22px 0 18px; }
+  .home-window .stage.home { height: clamp(280px, 38dvh, 380px); border-radius: 26px; box-shadow: var(--lift-2); }
+  .home-window .stage-copy { left: 26px; right: 26px; top: 22px; }
+  .home-window .stage-copy h1 { font-size: 30px; }
+  .home-window .stage-copy p { font-size: var(--fs-m); font-weight: 700; }
+  .home-window .talk { margin: -74px 22px 0; }
+  .home-window + .askfield { margin-top: 4px; }
   .feed-rail .section-h { margin-top: 28px; }
 
   /* ---------- card grids for lists ---------- */
   #app[data-screen=shop] .grid2 { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }
   #app[data-screen=circles] .scroll, #app[data-screen=circle] .scroll, #app[data-screen=ask] .scroll, #app[data-screen=friends] .scroll { --gut: 0px; }
+  #app[data-screen=circles] .section-h { margin-top: 22px; }
+  #app[data-screen=circles] .circle-card { align-content: flex-start; row-gap: 10px; }
+  #app[data-screen=circles] .circle-card .t { border: 0; background: none; padding: 0; text-align: left; color: inherit; cursor: pointer; }
+  #app[data-screen=circles] .circle-card.joined { box-shadow: inset 0 0 0 2px var(--forest-3), var(--lift); }
+  #app[data-screen=circles] .circle-card .lang-pill { margin-top: auto; }
+  #app[data-screen=circles] .circle-card .btn { margin-top: auto; }
+  .c-latest span { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .c-latest { flex: 1 0 100%; display: block; margin: 0; padding: 10px 12px; border: 0; border-radius: var(--r-s);
+    background: var(--mist); color: var(--ink); font: 600 var(--fs-s)/1.45 var(--body); text-align: left; cursor: pointer; transition: background .2s; }
+  .c-latest:hover { background: var(--mist-2); }
+  .c-locked { flex: 1 0 100%; display: flex; gap: 6px; align-items: center; margin: 0; color: var(--ink-2); font: 600 var(--fs-s)/1.4 var(--body); }
+  .c-locked .ic { width: 16px; height: 16px; }
   #app[data-screen=circles] .list { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; margin: 4px 0 var(--gap); background: none; box-shadow: none; overflow: visible; }
   #app[data-screen=circles] .list .li { flex-wrap: wrap; align-content: space-between; min-height: 156px; padding: 20px; border: 0; border-radius: var(--r); background: var(--card); box-shadow: var(--lift);
     transition: transform var(--t) var(--spring), box-shadow .3s; }
@@ -1335,6 +1355,8 @@ const I18N = {
   home_circles: { en: "From your Circles", ht: "圈子裡的新貼文", hs: "圈子里的新帖子" },
   home_no_circles: { en: "Join a Circle to see its posts here.", ht: "加入圈子後，就能在這裡看到貼文。", hs: "加入圈子后，就能在这里看到帖子。" },
   home_your_circles: { en: "Your Circles", ht: "我加入的圈子", hs: "我加入的圈子" },
+  circles_find: { en: "Circles to join", ht: "可以加入的圈子", hs: "可以加入的圈子" },
+  circle_join_to_read: { en: "Join to read and post. Members only.", ht: "加入後才能閱讀和發文，僅限成員。", hs: "加入后才能阅读和发帖，仅限成员。" },
   home_more: { en: "More from the community", ht: "社群裡的其他分享", hs: "社区里的其他分享" },
   circles: { en: "Circles", ht: "圈子", hs: "圈子" },
   ask: { en: "Ask", ht: "提問", hs: "提问" },
@@ -4329,10 +4351,17 @@ function memberHome() {
   const restBlock = rest.length ? section(t("home_more"), posts(rest)) : "";
   const joined = CIRCLES.filter(c => S.joined.includes(c.id));
   const yourCircles = joined.length ? section(t("home_your_circles"), `<div class="list">${joined.map(c => `<button class="li" data-a="circle" data-v="${c.id}"><span class="t"><b>${esc(c.name)}</b><small>${focusName(c.focus)} · ${t("members_n", { n: c.members })}</small></span><span class="lang-pill">${c.lang}</span>${icon("chev")}</button>`).join("")}</div>`, seeAll("tab", "circles")) : "";
-  // Desktop: the feed on the left; today, the guide and friends' replies in a column beside it.
-  if (DESK.matches) return `${hdrRoot(t("home"))}<div class="scroll feed-scroll"><div class="feed-grid">
-    <div class="feed-main">${hello}${ask}${newBlock}${friendsBlock}${circlesBlock}${restBlock}</div>
-    <aside class="feed-rail" aria-label="${t("home_today")}">${todayCard()}${guideCard()}${repliesBlock}${yourCircles}</aside></div></div>`;
+  // Desktop: the live riverbank opens Home, with the greeting in its sky and Pebble's dialogue
+  // (which asks how they are, so it doubles as the check-in) rising out of it. The feed follows;
+  // the guide, friends' replies and their Circles sit in a column beside it.
+  if (DESK.matches) {
+    const scene = `<div class="home-window"><section class="stage home" data-stage="home">
+      <div class="stage-copy ${skyDark() ? "dark" : ""}"><h1>${greeting()}</h1></div></section>
+      ${S.breathing ? "" : talkBox("home")}</div>`;
+    return `${hdrRoot(t("home"))}<div class="scroll feed-scroll"><div class="feed-grid">
+    <div class="feed-main">${scene}${ask}${newBlock}${friendsBlock}${circlesBlock}${restBlock}</div>
+    <aside class="feed-rail" aria-label="${t("home_today")}">${guideCard()}${repliesBlock}${yourCircles}</aside></div></div>`;
+  }
   return `${hdrMain()}<div class="scroll feed-scroll">${hello}${todayCard()}${ask}${guideCard()}${newBlock}${friendsBlock}${repliesBlock}${circlesBlock}${restBlock}<div style="height:16px"></div></div>`;
 }
 function askScreen() {
@@ -4503,8 +4532,23 @@ function circleList() {
     return `<div class="li"><button class="t" style="border:0;background:none;text-align:left;padding:0;min-height:44px" data-a="circle" data-v="${c.id}"><b>${esc(c.name)}</b><small>${focusName(c.focus)} · ${t("members_n", { n: c.members })}</small></button>
       <span class="lang-pill">${c.lang}</span><button class="btn ${j ? "quiet" : "primary"} sm" data-a="join" data-v="${c.id}" aria-pressed="${j}">${j ? t("joined") : t("join")}</button></div>`; }).join("")}</div>`;
 }
+function circleCard(c) {
+  const j = S.joined.includes(c.id);
+  const latest = j && S.posts.find(p => p.focus === c.focus && (!p.held || p.mine));
+  const tx = latest && textFor(latest.text, latest.orig, S.translated[latest.id]);
+  return `<div class="li circle-card ${j ? "joined" : ""}"><button class="t" data-a="circle" data-v="${c.id}"><b>${esc(c.name)}</b><small>${focusName(c.focus)} · ${t("members_n", { n: c.members })}</small></button>
+    ${j ? `<button class="c-latest" data-a="${latest ? "thread" : "circle"}" data-v="${latest ? latest.id : c.id}">${latest ? `<span lang="${tx.lang}">${esc(tx.text)}</span>` : `<span>${t("no_posts")}</span>`}</button>`
+      : `<p class="c-locked">${icon("lock")}<span>${t("circle_join_to_read")}</span></p>`}
+    <span class="lang-pill">${c.lang}</span><button class="btn ${j ? "quiet" : "primary"} sm" data-a="join" data-v="${c.id}" aria-pressed="${j}">${j ? t("joined") : t("join")}</button></div>`;
+}
 function circlesScreen() {
   const top = isRoot();
+  if (DESK.matches) {
+    const mine = CIRCLES.filter(c => S.joined.includes(c.id)), others = CIRCLES.filter(c => !S.joined.includes(c.id));
+    return `${top ? hdrRoot(t("circles")) : hdrSub(t("circles"))}<div class="scroll"><p class="pad muted" style="margin:0;display:flex;gap:8px">${icon("lock")}<span>${t("members_only")}</span></p>
+      ${mine.length ? `<h2 class="section-h">${t("home_your_circles")}</h2><div class="list circle-grid">${mine.map(circleCard).join("")}</div>` : ""}
+      ${others.length ? `<h2 class="section-h">${t("circles_find")}</h2><div class="list circle-grid">${others.map(circleCard).join("")}</div>` : ""}</div>`;
+  }
   return `${top ? hdrRoot(t("circles")) : hdrSub(t("circles"))}<div class="scroll"><p class="pad muted" style="margin:0;display:flex;gap:8px">${icon("lock")}<span>${t("members_only")}</span></p>${circleList()}<div style="height:12px"></div></div>`;
 }
 function circleScreen() {

@@ -260,6 +260,8 @@ const I18N = {
   home_circles: { en: "From your Circles", ht: "圈子裡的新貼文", hs: "圈子里的新帖子" },
   home_no_circles: { en: "Join a Circle to see its posts here.", ht: "加入圈子後，就能在這裡看到貼文。", hs: "加入圈子后，就能在这里看到帖子。" },
   home_your_circles: { en: "Your Circles", ht: "我加入的圈子", hs: "我加入的圈子" },
+  circles_find: { en: "Circles to join", ht: "可以加入的圈子", hs: "可以加入的圈子" },
+  circle_join_to_read: { en: "Join to read and post. Members only.", ht: "加入後才能閱讀和發文，僅限成員。", hs: "加入后才能阅读和发帖，仅限成员。" },
   home_more: { en: "More from the community", ht: "社群裡的其他分享", hs: "社区里的其他分享" },
   circles: { en: "Circles", ht: "圈子", hs: "圈子" },
   ask: { en: "Ask", ht: "提問", hs: "提问" },

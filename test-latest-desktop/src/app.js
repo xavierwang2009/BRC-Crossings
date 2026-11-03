@@ -674,10 +674,17 @@ function memberHome() {
   const restBlock = rest.length ? section(t("home_more"), posts(rest)) : "";
   const joined = CIRCLES.filter(c => S.joined.includes(c.id));
   const yourCircles = joined.length ? section(t("home_your_circles"), `<div class="list">${joined.map(c => `<button class="li" data-a="circle" data-v="${c.id}"><span class="t"><b>${esc(c.name)}</b><small>${focusName(c.focus)} · ${t("members_n", { n: c.members })}</small></span><span class="lang-pill">${c.lang}</span>${icon("chev")}</button>`).join("")}</div>`, seeAll("tab", "circles")) : "";
-  // Desktop: the feed on the left; today, the guide and friends' replies in a column beside it.
-  if (DESK.matches) return `${hdrRoot(t("home"))}<div class="scroll feed-scroll"><div class="feed-grid">
-    <div class="feed-main">${hello}${ask}${newBlock}${friendsBlock}${circlesBlock}${restBlock}</div>
-    <aside class="feed-rail" aria-label="${t("home_today")}">${todayCard()}${guideCard()}${repliesBlock}${yourCircles}</aside></div></div>`;
+  // Desktop: the live riverbank opens Home, with the greeting in its sky and Pebble's dialogue
+  // (which asks how they are, so it doubles as the check-in) rising out of it. The feed follows;
+  // the guide, friends' replies and their Circles sit in a column beside it.
+  if (DESK.matches) {
+    const scene = `<div class="home-window"><section class="stage home" data-stage="home">
+      <div class="stage-copy ${skyDark() ? "dark" : ""}"><h1>${greeting()}</h1></div></section>
+      ${S.breathing ? "" : talkBox("home")}</div>`;
+    return `${hdrRoot(t("home"))}<div class="scroll feed-scroll"><div class="feed-grid">
+    <div class="feed-main">${scene}${ask}${newBlock}${friendsBlock}${circlesBlock}${restBlock}</div>
+    <aside class="feed-rail" aria-label="${t("home_today")}">${guideCard()}${repliesBlock}${yourCircles}</aside></div></div>`;
+  }
   return `${hdrMain()}<div class="scroll feed-scroll">${hello}${todayCard()}${ask}${guideCard()}${newBlock}${friendsBlock}${repliesBlock}${circlesBlock}${restBlock}<div style="height:16px"></div></div>`;
 }
 function askScreen() {
@@ -848,8 +855,23 @@ function circleList() {
     return `<div class="li"><button class="t" style="border:0;background:none;text-align:left;padding:0;min-height:44px" data-a="circle" data-v="${c.id}"><b>${esc(c.name)}</b><small>${focusName(c.focus)} · ${t("members_n", { n: c.members })}</small></button>
       <span class="lang-pill">${c.lang}</span><button class="btn ${j ? "quiet" : "primary"} sm" data-a="join" data-v="${c.id}" aria-pressed="${j}">${j ? t("joined") : t("join")}</button></div>`; }).join("")}</div>`;
 }
+function circleCard(c) {
+  const j = S.joined.includes(c.id);
+  const latest = j && S.posts.find(p => p.focus === c.focus && (!p.held || p.mine));
+  const tx = latest && textFor(latest.text, latest.orig, S.translated[latest.id]);
+  return `<div class="li circle-card ${j ? "joined" : ""}"><button class="t" data-a="circle" data-v="${c.id}"><b>${esc(c.name)}</b><small>${focusName(c.focus)} · ${t("members_n", { n: c.members })}</small></button>
+    ${j ? `<button class="c-latest" data-a="${latest ? "thread" : "circle"}" data-v="${latest ? latest.id : c.id}">${latest ? `<span lang="${tx.lang}">${esc(tx.text)}</span>` : `<span>${t("no_posts")}</span>`}</button>`
+      : `<p class="c-locked">${icon("lock")}<span>${t("circle_join_to_read")}</span></p>`}
+    <span class="lang-pill">${c.lang}</span><button class="btn ${j ? "quiet" : "primary"} sm" data-a="join" data-v="${c.id}" aria-pressed="${j}">${j ? t("joined") : t("join")}</button></div>`;
+}
 function circlesScreen() {
   const top = isRoot();
+  if (DESK.matches) {
+    const mine = CIRCLES.filter(c => S.joined.includes(c.id)), others = CIRCLES.filter(c => !S.joined.includes(c.id));
+    return `${top ? hdrRoot(t("circles")) : hdrSub(t("circles"))}<div class="scroll"><p class="pad muted" style="margin:0;display:flex;gap:8px">${icon("lock")}<span>${t("members_only")}</span></p>
+      ${mine.length ? `<h2 class="section-h">${t("home_your_circles")}</h2><div class="list circle-grid">${mine.map(circleCard).join("")}</div>` : ""}
+      ${others.length ? `<h2 class="section-h">${t("circles_find")}</h2><div class="list circle-grid">${others.map(circleCard).join("")}</div>` : ""}</div>`;
+  }
   return `${top ? hdrRoot(t("circles")) : hdrSub(t("circles"))}<div class="scroll"><p class="pad muted" style="margin:0;display:flex;gap:8px">${icon("lock")}<span>${t("members_only")}</span></p>${circleList()}<div style="height:12px"></div></div>`;
 }
 function circleScreen() {
