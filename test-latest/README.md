@@ -83,7 +83,13 @@ Companion offers breathing, generated ambient tones/rain/waves, session-only pri
 
 Open `?screen=counselor` or Me → Preview counselor workspace. This separate English-language demo contains an assigned-member inbox, community questions with topic/language filters, member visibility examples, and profile/availability settings. Replies, flags, resolution state and settings are simulated in memory and clear on refresh. No clinic staff are notified. It uses isolated fictional data and never reads member journal entries or resolves anonymous identities. Clinic invitation, credential verification and production access control are described but not implemented.
 
-### Home feature orbit
+### Member Home
+
+Once someone signs in or finishes setup, Home is their own page and the public welcome page no longer appears. Open `?skip=1`, or sign in and choose Home. It shows a greeting, today's check-in with the Companion, the ask field and the Counselor guide, then: **New for you** (a new Counselor answer, the Member's own posts), **From your friends** (friends' named posts), **Your friends replied** (friends' named replies), **From your Circles**, and **More from the community**. Each post shows once.
+
+Anonymous posts and replies never show who wrote them. Friends' Helpful taps are not shown, because Members have not agreed to share them. The sample account starts with Kevin W. as a friend; a new sign-up starts with none. Run `node tests/home.cjs`.
+
+### Home feature orbit (visitors)
 
 Home (`?screen=home`) replaces the pet/riverbank hero with an adult editorial feature introduction. Four distinct generated images introduce Community, Counselor guidance, Friends, and Companion. The description slides to match the frontmost image during automatic rotation, dragging, and photo/dot or previous/next selection. Get started opens setup with empty profile fields and unchecked consents; Sign in opens the sample member experience. Motion pauses on hover/focus, supports manual pause and swipe, respects reduced motion, and is cleaned up on navigation. The pet remains on Companion and the setup picker.
 

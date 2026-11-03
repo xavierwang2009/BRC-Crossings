@@ -736,3 +736,21 @@ button.li:hover { background: #f5faf7; }
 .home-languages button[aria-pressed="true"] { background:#e1eee3; border-color:#b9d1bd; }
 .home-languages button:focus-visible { outline:2px solid var(--forest); outline-offset:2px; }
 .app-tour-card .home-languages { margin-top:10px; }
+
+/* The Member's Home: greeting, today's check-in, the ask field, then the feed. */
+.feed-hello { padding: 18px var(--gut) 12px; }
+.feed-hello h1 { margin: 0; font: 600 var(--fs-l)/1.2 var(--display); color: var(--forest); text-wrap: balance; }
+.feed-hello p { margin: 4px 0 0; }
+.today-card { display: flex; align-items: center; gap: 12px; padding: 12px 14px; }
+.today-pet { width: 56px; height: 56px; flex: none; border-radius: 16px; display: grid; place-items: center; overflow: hidden; background: radial-gradient(circle at 50% 38%, #fff 0, #e8f4ee 70%); }
+.today-pet img { width: 100%; height: 100%; object-fit: contain; }
+.today-copy { flex: 1; min-width: 0; }
+.today-copy b { display: block; font: 600 var(--fs-m)/1.25 var(--display); color: var(--forest); }
+.today-copy .muted { display: block; font-size: var(--fs-s); }
+.today-card { align-items: flex-start; }
+.today-copy .btn { margin-top: 10px; }
+.feed-empty { margin: 0 var(--gut) var(--gap); padding: 14px 16px; border-radius: var(--r); background: var(--mist-2); color: var(--ink-2); font-size: var(--fs-s); }
+.feed-empty p { margin: 0 0 10px; }
+.feed-empty p:last-child { margin: 0; }
+.feed-note { display: flex; gap: 6px; align-items: flex-start; margin: -4px var(--gut) var(--gap); font: 600 var(--fs-s)/1.4 var(--body); color: var(--ink-2); }
+.feed-note .ic { width: 16px; height: 16px; margin-top: 2px; color: var(--river-ink); }

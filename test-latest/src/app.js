@@ -17,7 +17,7 @@ const S = {
   crisis: null, toast: null, posted: false, replyDraft: "", breathing: false, petHinted: false, timeOverride: null, enter: null,
   realName: "", nameShow: "anon", history: [], streakGoal: 7, activityDay: null,
   practiceQuery: "", practiceTopic: "", practiceDuration: "", practiceLanguage: "", savedPractices: [], savedOnly: false, practice: null,
-  heroFeature: 0, heroPaused: false, appTour: null,
+  heroFeature: 0, heroPaused: false, appTour: null, member: false,
   daily: newDaily(), phq: null, phqSample: null, dMedNote: "", dLine: "", checkinSafety: false, phqSafety: false,
   care: null, careShareMode: "moment", journalDraft: "", journalEntries: [], careSound: null, careVolume: 20,
   friendships: {}, friendRecipient: null, friendMessages: {}, friendDrafts: {},
@@ -118,6 +118,8 @@ function toast(msg, ic = "seed") { S.toast = { msg, ic, id: Date.now() }; }
 const TAB_ROOTS = ["home", "circles", "companion", "me"];
 const SECTION_OF = { dailyDone: "companion", phqIntro: "companion", phqResult: "companion", shop: "companion", circle: "circles" };
 const NO_TAB_BAR = ["daily", "phq","compose", "thread", "dm", "friendDm", "counselor"];
+/* Home is the public welcome page until the Member signs in or finishes setup; after that it is their own Home. */
+const landing = () => S.screen === "home" && !S.member;
 function sectionTab() {
   if (TAB_ROOTS.includes(S.screen)) return S.screen;
   if (SECTION_OF[S.screen]) return SECTION_OF[S.screen];
@@ -610,7 +612,51 @@ function mountHomeHero() {
   heroCleanup = () => { borders.forEach(border => border.destroy()); engine.destroy(); motion.removeEventListener('change', syncPause); document.removeEventListener('visibilitychange', syncPause); };
 }
 function home() {
-  return `<div class="scroll home-entry">${homeHero()}</div>`;
+  return S.member ? memberHome() : `<div class="scroll home-entry">${homeHero()}</div>`;
+}
+/* ---------- the Member's Home ----------
+   What changed for them, then friends, then their Circles, then the rest of the community.
+   Each post shows once. Friends appear only through named posts and named replies;
+   anonymous posts and replies never reveal who wrote them. */
+const isFriend = id => S.friendships[id] === "friend";
+function friendReplies() {
+  const friends = MEMBERS.filter(m => isFriend(m.id));
+  return S.posts.flatMap(p => p.replies.filter(r => !r.held).map(r => ({ p, r, m: friends.find(m => m.name === r.author) }))).filter(x => x.m);
+}
+function todayCard() {
+  const m = S.checkedIn && MOODS.find(x => x.id === S.mood);
+  const sub = !S.checkedIn ? t("daily_sub") : S.daily.done ? dailySummary() : L(m);
+  return `<section class="panel today-card">${m ? `<span class="today-pet">${moodFace(m, 44)}</span>` : `<span class="today-pet">${thumb(S.species)}</span>`}
+    <span class="today-copy"><b>${S.checkedIn ? t("checked_in") : t("daily_title")}</b><span class="muted">${sub}</span>
+    ${S.checkedIn ? `<button class="btn quiet sm" data-a="tab" data-v="companion">${t("home_visit", { pet: esc(S.petName) })}</button>` : `<button class="btn sun sm" data-a="dailyOpen">${t("daily_start")}</button>`}</span></section>`;
+}
+function memberHome() {
+  const shown = new Set(), take = list => list.filter(p => !shown.has(p.id) && shown.add(p.id));
+  const focuses = CIRCLES.filter(c => S.joined.includes(c.id)).map(c => c.focus);
+  const fresh = take(S.posts.filter(p => (p.unseenAnswer || p.mine) && !S.seen[p.id]));
+  const friends = take(S.posts.filter(p => !p.anon && p.memberId && isFriend(p.memberId)));
+  const circles = take(S.posts.filter(p => focuses.includes(p.focus)));
+  const rest = take(S.posts);
+  const hasFriends = MEMBERS.some(m => isFriend(m.id)), replies = friendReplies();
+  const posts = list => list.map(p => postPanel(p, { preview: true })).join("");
+  const empty = (key, action, v, label) => `<div class="feed-empty"><p>${t(key)}</p><button class="btn quiet sm" data-a="${action}" data-v="${v}">${label}</button></div>`;
+  const section = (title, body, more = "") => `<h2 class="section-h">${title}${more}</h2>${body}`;
+  const seeAll = (a, v) => `<button class="more" data-a="${a}" data-v="${v}">${t("see_all")}${icon("chev")}</button>`;
+  const hello = `<div class="feed-hello"><h1>${greeting()}</h1><p class="muted">${t("home_sub")}</p></div>`;
+  const ask = `<button class="askfield" data-a="go" data-v="ask">${icon("ask")}<span>${t("ask_placeholder")}</span></button>`;
+  const newBlock = fresh.length ? section(t("home_new"), posts(fresh)) : "";
+  const friendsBlock = section(t("home_friends"), !hasFriends ? empty("home_no_friends", "side", "friends", t("friends_title"))
+    : friends.length ? posts(friends) : `<div class="feed-empty"><p>${t("home_friends_quiet")}</p></div>`, hasFriends ? seeAll("side", "friends") : "");
+  const repliesBlock = hasFriends && replies.length ? section(t("home_friend_replies"), `<div class="list">${replies.map(({ p, r, m }) => {
+      const tx = textFor(r.text, r.orig || "en", false);
+      return `<button class="li" data-a="thread" data-v="${p.id}">${avatar(m.name, false)}<span class="t"><b>${esc(t(p.anon ? "home_replied_anon" : "home_replied_post", { name: m.name, author: p.author }))}</b><small lang="${tx.lang}">${esc(tx.text)}</small></span>${icon("chev")}</button>`; }).join("")}</div>
+      <p class="feed-note">${icon("lock")}<span>${t("home_named_only")}</span></p>`) : "";
+  // A Circle post already shown above is not repeated; "no posts" only when the Circles really have none.
+  const circlesAny = S.posts.some(p => focuses.includes(p.focus));
+  const circlesBlock = !focuses.length ? section(t("home_circles"), empty("home_no_circles", "tab", "circles", t("circles")))
+    : circles.length || !circlesAny ? section(t("home_circles"), circles.length ? posts(circles) : `<div class="feed-empty"><p>${t("no_posts")}</p></div>`, seeAll("tab", "circles")) : "";
+  const restBlock = rest.length ? section(t("home_more"), posts(rest)) : "";
+  return `${hdrMain()}<div class="scroll feed-scroll">${hello}${todayCard()}${ask}${guideCard()}${newBlock}${friendsBlock}${repliesBlock}${circlesBlock}${restBlock}<div style="height:16px"></div></div>`;
 }
 function askScreen() {
   const friends = MEMBERS.filter(m => S.friendships[m.id] === "friend");
@@ -988,7 +1034,7 @@ function render(nav = false) {
   syncWorld();
   let html = musicControls() + view();
   if (["daily", "dailyDone", "phqIntro", "phq", "phqResult"].includes(S.screen)) html = testBar() + html;
-  if (S.screen !== "home" && S.screen !== "onboard" && !NO_TAB_BAR.includes(S.screen)) html += tabs(sectionTab());
+  if (!landing() && S.screen !== "onboard" && !NO_TAB_BAR.includes(S.screen)) html += tabs(sectionTab());
   if (S.appTour !== null) html += appTourPanel();
   if (S.crisis) html += crisisSheet();
   if (S.toast) html += `<div class="toast" role="status">${icon(S.toast.ic)}${esc(S.toast.msg)}</div>`;
@@ -1015,6 +1061,7 @@ function render(nav = false) {
 const SCREEN_NOTES = {
   counselor: ["Isolated fictional counselor workspace; no access to member journals or anonymous identities.", "All replies, flags and profile settings are session-only simulations."],
   onboard: ["Help is reachable from the first screen.", "Optional consents start unticked; age and terms are required.", "Location has no default, because it gates Counselor services.", "The Companion is a live 3D model; tap the species to switch."],
+  feed: ["Signed-in Home: new for you (a fresh Counselor answer, your own posts), posts from friends, friends' named replies, then your Circles and the rest of the community. Each post shows once.", "Anonymous posts and replies never show who wrote them. Friends' Helpful taps are not shown: Members have not agreed to share them.", "The sample account starts with Kevin W. as a friend; a new sign-up starts with none."],
   home: ["Adult-facing feature hero with generated illustrative photos; these are not real members or counselors.", "OrbitImages adapted from React Bits (Dominik Koch); pause, swipe and keyboard controls.", "Companion scene is reserved for its own page and setup."],
   compose: ["Named or Anonymous for this post only.", "Risk screening matches whole phrases in English and Chinese; risky posts are held and crisis help shows immediately.", "Try “I don't want to live” to see the hold."],
   thread: ["Replies choose their own identity, defaulting to Anonymous.", "Replies are risk-screened like posts.", "Translate works both ways and is labelled."],
@@ -1029,7 +1076,7 @@ const SCREEN_NOTES = {
 };
 function renderNotes() {
   const n = $("#screenName"); if (!n) return;
-  const key = S.screen === "onboard" ? "onboard" : S.screen;
+  const key = S.screen === "onboard" ? "onboard" : S.screen === "home" && S.member ? "feed" : S.screen;
   n.textContent = S.screen === "onboard" ? (S.step ? `Onboarding · step ${S.step} of 5` : "Welcome") : key[0].toUpperCase() + key.slice(1);
   $("#screenNotes").innerHTML = (SCREEN_NOTES[key] || SCREEN_NOTES.home).map(x => `<li>${esc(x)}</li>`).join("");
   $("#times").innerHTML = [[null, "Live"], [7, "Morning"], [13, "Day"], [18.6, "Dusk"], [22, "Night"], [23.6, "Late night"]].map(([h, l]) => `<button data-time="${h ?? ""}" class="${S.timeOverride === h ? "on" : ""}">${l}</button>`).join("")
@@ -1095,12 +1142,13 @@ const actions = {
   next() {
     if (S.step === 5 && (!S.companionChosen || !S.petName.trim())) return;
     if (S.step < 5) { S.step++; if (S.step === 5 && world) world.anim.pop = world.time; }
-    else { S.screen = "circles"; S.stack = []; S.draftFocus = S.mainFocus || "individual"; toast(t("welcome_toast", { n: 20 })); }
+    else { S.screen = "circles"; S.stack = []; S.member = true; S.draftFocus = S.mainFocus || "individual"; toast(t("welcome_toast", { n: 20 })); }
     render(true);
   },
-  prev() { S.step = Math.max(0, S.step - 1); render(true); },
+  // Setup opened from Home's Get started returns to Home from step 1, not to the older welcome tour.
+  prev() { if (S.step <= 1 && S.stack.length) { back(); return; } S.step = Math.max(0, S.step - 1); render(true); },
   getStarted() { Object.assign(S, { step: 1, age: false, terms: false, optMatch: false, optJournal: false, realName: "", nameShow: "anon", focuses: [], mainFocus: null, state: null, species: "otter", petName: "", companionChosen: false, match: null }); go("onboard"); },
-  signin() { Object.assign(S, { realName: "Lily Zhang", nameShow: "initials", companionChosen: true, petName: "Pebble", age: true, terms: true, optMatch: true, focuses: ["parenting"], mainFocus: "parenting", state: "TX", screen: "circles", stack: [] }); toast(t("sign_in_na"), "me"); render(true); },
+  signin() { Object.assign(S, { member: true, friendships: { kevin: "friend", ...S.friendships }, realName: "Lily Zhang", nameShow: "initials", companionChosen: true, petName: "Pebble", age: true, terms: true, optMatch: true, focuses: ["parenting"], mainFocus: "parenting", state: "TX", screen: "circles", stack: [] }); toast(t("sign_in_na"), "me"); render(true); },
   lang(v) { S.lang = v; render(); },
   flag(v, el) { S[v] = el.checked; render(); },
   flagOn(v) { S[v] = true; render(); },
@@ -1259,7 +1307,7 @@ document.addEventListener("keydown", e => {
 })();
 
 /* Deep links for reviewing screens: ?skip=1, ?screen=…, ?lang=ht, ?step=2, ?loc=INTL, ?checkedin=1, ?mood=sad, ?match=k1, ?sheet=held, ?thread=p1, ?draft=…, ?time=22 */
-if (params.get("skip") === "1" || params.get("screen")) Object.assign(S, { realName: "Lily Zhang", nameShow: "initials", companionChosen: true, petName: "Pebble", screen: "home", age: true, terms: true, optMatch: true, focuses: ["parenting"], mainFocus: "parenting", state: "TX" });
+if (params.get("skip") === "1" || params.get("screen")) Object.assign(S, { member: true, friendships: { kevin: "friend" }, realName: "Lily Zhang", nameShow: "initials", companionChosen: true, petName: "Pebble", screen: "home", age: true, terms: true, optMatch: true, focuses: ["parenting"], mainFocus: "parenting", state: "TX" });
 if (params.get("screen")) { S.screen = params.get("screen"); if (!["home", "circles", "companion", "me"].includes(S.screen)) S.stack = [{ screen: "home" }]; }
 if (params.get("lang")) S.lang = params.get("lang");
 if (params.get("step")) { S.step = +params.get("step"); if (S.step >= 2) Object.assign(S, { age: true, terms: true }); }
