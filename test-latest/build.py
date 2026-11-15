@@ -15,8 +15,8 @@ targetcursor = (src / "targetcursor.js").read_text(encoding="utf-8")
 orbit = (src / "orbit.js").read_text(encoding="utf-8")
 starborder = (src / "starborder.js").read_text(encoding="utf-8")
 for image_name in ("home-community", "home-counselor", "home-friends", "home-companion", "home-checkin"):
-    feature_image = base64.b64encode((root / "assets" / f"{image_name}.png").read_bytes()).decode()
-    css = css.replace(f'url("assets/{image_name}.png")', f'url("data:image/png;base64,{feature_image}")')
+    feature_image = base64.b64encode((root / "assets" / f"{image_name}.jpg").read_bytes()).decode()
+    css = css.replace(f'url("assets/{image_name}.jpg")', f'url("data:image/jpeg;base64,{feature_image}")')
 content = (src / "content.js").read_text(encoding="utf-8")
 content += (src / "checkin-content.js").read_text(encoding="utf-8")
 music = (src / "music.js").read_text(encoding="utf-8")
@@ -36,6 +36,9 @@ html = f"""<!doctype html>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#24452f">
 <meta name="apple-mobile-web-app-title" content="BRC Crossings">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="apple-touch-icon" sizes="180x180" href="assets/apple-touch-icon.png">
 <link rel="icon" type="image/png" sizes="192x192" href="assets/icon-192.png">
 <link rel="manifest" href="manifest.webmanifest">
@@ -60,6 +63,7 @@ html = f"""<!doctype html>
   <div class="card"><details><summary>Prototype state</summary><pre id="stateDump"></pre></details></div>
   <div class="card" style="font-size:12px;color:#4d5f53">All people, posts and Counselor names are fictional samples. Logo from bridgerivercounseling.com until official files arrive. The Chinese-language crisis line stays hidden until a partner is confirmed.</div>
 </aside>
+<script>if ("serviceWorker" in navigator) addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {{}}));</script>
 <script>window.BRC_LOGO = "data:image/png;base64,{logo}";</script>
 <script>
 {content}

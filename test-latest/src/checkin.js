@@ -30,6 +30,7 @@ function askOpt(on, label, action, v) {
   return `<button class="who-opt ${on ? "on" : ""}" aria-pressed="${on}" data-a="${action}" data-v="${v}"><span class="t"><b>${label}</b></span><span class="radio" aria-hidden="true"></span></button>`;
 }
 function samplePicker(list, action, current) {
+  if (typeof DEMO === "undefined" || !DEMO) return "";
   return `<div class="test-box"><span class="label">${t("test_samples")}</span><div class="chips">${list.map(s => `<button class="chip ${current === s.id ? "on" : ""}" data-a="${action}" data-v="${s.id}" aria-pressed="${current === s.id}">${L(s.name)}</button>`).join("")}</div></div>`;
 }
 function helpPanel(titleKey, bodyKey, extra = "") {
@@ -52,13 +53,23 @@ function pebbleSays(key, o = {}) {
 }
 
 /* ---------- Companion entry point ---------- */
+/* One tap checks in. Everything after that is the Member's choice, and says so. */
+function moodPicker() {
+  return `<div class="mood-pick" role="group" aria-label="${t("mood_q")}">${MOODS.map(m => { const on = S.checkedIn && S.mood === m.id;
+    return `<button class="mood-btn ${on ? "on" : ""}" data-a="quickCheckin" data-v="${m.id}" aria-pressed="${on}">${moodFace(m, 40)}<span>${L(m)}</span></button>`; }).join("")}</div>`;
+}
+function optionalSteps() {
+  const d = S.daily, pet = esc(S.petName);
+  const row = (action, ic, title, sub, done) => `<button class="li" data-a="${action}">${icon(ic)}<span class="t"><b>${title}</b><small>${sub}</small></span>${done ? `<span class="tag answer">${icon("check")}${t("done_tag")}</span>` : `<span class="tag tag-optional">${t("optional")}</span>`}</button>`;
+  return `<p class="opt-head">${t("more_optional")}</p><div class="list opt-list">
+    ${row("dailyOpen", "chat", d.done ? t("daily_see") : t("more_title", { pet }), t(d.done ? "more_done_sub" : "more_sub", { pet }), d.done)}
+    ${row("phqOpen", "heart", t("screen_title"), t("screen_sub"), false)}</div>`;
+}
 function dailyPanel() {
-  const d = S.daily, m = MOODS.find(x => x.id === S.mood);
-  const moodRow = `<button class="btn ghost block" data-a="phqOpen">${icon("heart")}${t("mood_check_link")}</button>`;
-  if (d.done) return `<div class="panel tray in"><div style="display:flex;gap:14px;align-items:center">${moodFace(m, 48)}<div style="flex:1"><b style="color:var(--forest);font:600 var(--fs-m)/1.3 var(--display)">${t("checked_in")}</b><div class="muted">${dailySummary()}</div></div></div>
-      <button class="btn quiet block" style="margin-top:14px" data-a="dailyOpen">${t("daily_see")}</button><button class="btn ghost block" data-a="dailyRestart">${t("activity_edit")}</button>${moodRow}<p class="muted">${t("test_bar")}</p></div>`;
-  return `<div class="panel tray in"><h3 class="panel-h">${t("daily_title")}</h3><p class="muted" style="margin:-8px 0 14px">${t("daily_sub")}</p>
-      <button class="btn sun block" data-a="dailyOpen">${icon("check")}${t("daily_start")}</button>${moodRow}<p class="muted">${t("test_bar")}</p></div>`;
+  const m = MOODS.find(x => x.id === S.mood);
+  if (!S.checkedIn || !m || S.moodEdit) return `<div class="panel tray in"><h3 class="panel-h">${t("mood_q")}</h3><p class="muted" style="margin:-8px 0 12px">${t("mood_q_sub")}</p>${moodPicker()}</div>`;
+  return `<div class="panel tray in"><div style="display:flex;gap:14px;align-items:center">${moodFace(m, 48)}<div style="flex:1"><b style="color:var(--forest);font:600 var(--fs-m)/1.3 var(--display)">${t("checked_in")}</b><div class="muted">${S.daily.done ? L(m) + " · " + dailySummary() : L(m)}</div></div>
+      <button class="btn ghost sm" data-a="moodEdit">${t("change_mood")}</button></div>${optionalSteps()}</div>`;
 }
 function dailySummary() {
   const d = S.daily, label = (k, v) => t(D_STEPS.find(s => s.k === k).opts.find(o => o[0] === v)[1]);
@@ -117,15 +128,16 @@ function activityRows() {
 function dailyDone() {
   const d = S.daily, flagged = dailyFlag();
   const hard = HARD_MOODS.includes(S.mood) || d.trend === "worse" || d.topics.includes("mood");
+  const ask = hard && !d.askOff && phqDue();
   const line = flagged ? "d_r_safe" : hard ? "d_r_hard" : d.trend === "same" ? "d_r_same" : "d_r_ok";
-  const invite = hard && !d.askOff ? `<div class="panel tray in"><h3 class="panel-h">${t("invite_title")}</h3><p class="muted" style="margin:-8px 0 14px">${t("invite_body")}</p>
+  const invite = ask ? `<div class="panel tray in"><h3 class="panel-h">${t("invite_title")}</h3><p class="muted" style="margin:-8px 0 14px">${t("invite_body")}</p>
       <button class="btn primary block" data-a="phqStart" data-v="2">${t("invite_short")}</button>
       <button class="btn quiet block" style="margin-top:8px" data-a="phqStart" data-v="9">${t("invite_full")}</button>
       <button class="btn ghost block" style="margin-top:2px" data-a="dailyAskOff">${t("invite_no")}</button></div>` : "";
   const med = d.med === "yes" ? `<div class="notice"><h3>${t("med_title")}</h3><p>${t("med_body")}</p>${S.dMedNote.trim() ? `<p class="muted">${esc(t("med_noted", { v: S.dMedNote.trim() }))}</p>` : ""}</div>` : "";
   const resources = `<h2 class="section-h">${t("d_for_today")}</h2><div class="list">${resourceRows(dailyResources())}</div>
     <h2 class="section-h">${t("d_try")}</h2><div class="list">${activityRows()}</div>`;
-  const again = hard && !d.askOff ? "" : `<div class="list"><button class="li" data-a="phqOpen">${icon("heart")}<span class="t"><b>${t("mood_check_link")}</b><small>${t("mood_check_sub")}</small></span>${icon("chev")}</button></div>`;
+  const again = ask ? "" : `<div class="list"><button class="li" data-a="phqOpen">${icon("heart")}<span class="t"><b>${t("mood_check_link")}</b><small>${t("mood_check_sub")}</small></span>${icon("chev")}</button></div>`;
   return `${hdrSub(t("daily_title"))}<div class="scroll">
     ${flagged ? `<div style="height:14px"></div>${helpPanel("safe_title", "safe_body")}` : ""}
     <section class="stage done" data-stage="companion"></section>
@@ -146,6 +158,11 @@ function phqScore() {
   const answers = p.ans.slice(0, p.form);
   return answers.length === p.form && answers.every(n => Number.isInteger(n) && n >= 0 && n <= 3)
     ? answers.reduce((a, b) => a + b, 0) : null;
+}
+/* The questionnaire looks back two weeks, so it is offered at most once in that time. */
+function phqDue() {
+  if (!S.phqLast) return true;
+  return (new Date(dayKey() + "T12:00:00Z") - new Date(S.phqLast + "T12:00:00Z")) / 864e5 >= 14;
 }
 const phqFlag = () => S.phqSafety || (S.phq && S.phq.form === 9 && S.phq.ans[8] > 0);
 function phqIntro() {
@@ -239,13 +256,16 @@ function dailyFinish() {
   const d = S.daily, flagged = dailyFlag();
   if (!D_STEPS.every(q => q.opts.some(([v]) => v === d[q.k]))) return;
   S.care = null;
-  S.mood = flagged ? "low" : { better: "good", same: "okay", worse: "low" }[d.trend];
-  Object.assign(S, { checkedIn: true, petHinted: true, away: false, screen: "dailyDone" });
+  /* The mood is the one the Member picked. The answers here add to it; they never replace it. */
+  if (!MOODS.some(m => m.id === S.mood)) S.mood = { better: "good", same: "okay", worse: "low" }[d.trend];
+  Object.assign(S, { checkedIn: true, petHinted: true, away: false, moodEdit: false, screen: "dailyDone" });
   d.done = true;
   /* Same seeds whatever the answers, and no toast on a safety answer: honesty never costs anything or feels rewarded. */
   const got = recordMood(S.mood) ? earn(5) : 0;
   if (got && !flagged) toast(t("seeds_earned", { n: got }));
-  talkTo("r_" + S.mood, { silent: true });
+  const today = S.history.find(row => row.date === dayKey());
+  if (today) Object.assign(today, { trend: d.trend, sleep: d.sleep, topics: [...d.topics] });
+  talkTo("r_" + (flagged && !HARD_MOODS.includes(S.mood) ? "low" : S.mood), { silent: true });
   render(true);
   if (world) world.celebrate(HARD_MOODS.includes(S.mood));
 }
@@ -261,11 +281,26 @@ function phqFinish() {
   if (phqScore() === null || (S.phq.form === 9 && S.phq.func == null)) return;
   const top = S.stack[S.stack.length - 1];
   if (top && ["phqIntro", "phqResult"].includes(top.screen)) S.stack.pop();
+  S.phqLast = dayKey();
   S.screen = "phqResult"; render(true);
 }
 const CHECKIN_ACTIONS = {
   dailyRestart() { S.daily = newDaily(); S.dMedNote = ""; S.dLine = ""; go("daily"); },
+  /* One tap: the mood is recorded and the day counts. Changing it later updates the same day. */
+  quickCheckin(v) {
+    if (!MOODS.some(m => m.id === v)) return;
+    const first = recordMood(v);
+    Object.assign(S, { mood: v, checkedIn: true, petHinted: true, away: false, moodEdit: false, care: null });
+    const got = first ? earn(5) : 0;
+    if (got) toast(t("seeds_earned", { n: got }));
+    talkTo("r_" + v, { silent: true });
+    if (S.screen !== "companion") { S.stack = []; S.screen = "companion"; }
+    render(true);
+    if (world) world.celebrate(HARD_MOODS.includes(v));
+  },
+  moodEdit() { S.moodEdit = true; render(); },
   dailyOpen() {
+    if (!S.checkedIn) { go("companion"); return; }
     if (S.daily.done) { go("dailyDone"); return; }
     go("daily");
   },

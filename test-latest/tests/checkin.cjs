@@ -39,5 +39,5 @@ assert.notEqual(run('S.screen'),'phqResult');
 for (const topic of ['sleep','stress','mood','family','kids','partner','work','health']) {
   assert.equal(run(`S.daily.topics=['${topic}'];dailyResources().every(r=>r && r.steps.length)`),true);
 }
-assert.equal(run('RESOURCES.map(r=>r.id).join(",")'),'notice,gratitude,work,family,listen,future');
+assert.equal(run('RESOURCES.map(r=>r.id).join(",")'),'notice,gratitude,work,family,listen,future,draw-feeling,family-doodle,mood-playlist,hum-breathe,walk-notice,stretch-desk');
 console.log('Check-in: incomplete answers, all PHQ-9 totals, carry-over, immediate/sticky safety, daily reward deduplication, and real resource routes passed.');

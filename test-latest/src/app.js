@@ -5,6 +5,8 @@
 const $ = s => document.querySelector(s);
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 const params = new URLSearchParams(location.search);
+/* ?demo=1 shows the reviewer aids: sample answers, the sample week and the test bar. */
+const DEMO = params.get("demo") === "1";
 
 const S = {
   lang: "en", screen: "home", step: 0, tour: 0, stack: [],
@@ -12,15 +14,16 @@ const S = {
   focuses: [], mainFocus: null, state: null, species: "otter", petName: "", companionChosen: false,
   seeds: 20, earnedToday: 0, persona: "anon", replyPersona: "anon", draft: "", draftFocus: "parenting",
   mood: null, tags: [], note: "", checkedIn: false, shareMood: false, showCircles: false, showFriends: false,
-  match: null, dm: [], dmDraft: "", joined: ["c1"], owned: [], wear: [], helpful: {}, translated: {}, seen: {},
+  match: null, dm: [], dmDraft: "", joined: [], owned: [], wear: [], helpful: {}, translated: {}, seen: {},
   posts: POSTS.map(p => ({ ...p, replies: p.replies.map(r => ({ ...r })) })), thread: null, circle: null,
   crisis: null, toast: null, posted: false, replyDraft: "", breathing: false, petHinted: false, timeOverride: null, enter: null,
   realName: "", nameShow: "anon", history: [], streakGoal: 7, activityDay: null,
-  practiceQuery: "", practiceTopic: "", practiceDuration: "", practiceLanguage: "", savedPractices: [], savedOnly: false, practice: null,
+  practiceQuery: "", practiceKind: "", practiceTopic: "", practiceDuration: "", practiceLanguage: "", savedPractices: [], savedOnly: false, practice: null,
   heroFeature: 0, heroPaused: false, appTour: null, member: false,
   daily: newDaily(), phq: null, phqSample: null, dMedNote: "", dLine: "", checkinSafety: false, phqSafety: false,
   care: null, careShareMode: "moment", journalDraft: "", journalEntries: [], careSound: null, careVolume: 20,
   friendships: {}, friendRecipient: null, friendMessages: {}, friendDrafts: {},
+  scene: "riverbank", moodEdit: false, phqLast: null, bonusDay: {}, baseSpecies: null, guideZh: null, draftCircle: null, menu: null,
   away: false, talk: { node: null, shown: null, typed: null, at: 0, seen: {}, ambient: 0 },
 };
 
@@ -55,19 +58,21 @@ function recordMood(mood, today = dayKey()) {
 function activityDate(key, options = { month: "short", day: "numeric" }) {
   return new Intl.DateTimeFormat(S.lang === "en" ? "en-US" : zhTag(), { ...options, timeZone: "UTC" }).format(new Date(key + "T12:00:00Z"));
 }
+/* Counts that only ever grow: a missed day takes nothing away. */
+const daysLabel = n => t(n === 1 ? "day_one" : "streak_days", { n });
+const monthCount = () => S.history.filter(row => row.date.slice(0, 7) === dayKey().slice(0, 7)).length;
 function activityLink() {
-  const stats = streakStats(S.history);
-  return `<button class="panel activity-link" data-a="go" data-v="activity">${icon("calendar")}<span><b>${t("activity")}</b><small>${t("current_streak")} · ${t("streak_days", { n: stats.current })}</small></span>${icon("chev")}</button>`;
+  return `<button class="panel activity-link" data-a="go" data-v="activity">${icon("calendar")}<span><b>${t("activity")}</b><small>${t("month_count")} · ${daysLabel(monthCount())}</small></span>${icon("chev")}</button>`;
 }
 function activityScreen() {
-  const today = dayKey(), stats = streakStats(S.history), dates = Array.from({ length: 7 }, (_, i) => shiftDay(today, i - 6));
+  const today = dayKey(), total = S.history.length, dates = Array.from({ length: 7 }, (_, i) => shiftDay(today, i - 6));
   const rows = S.history.filter(row => dates.includes(row.date));
   const first = [...S.history].sort((a, b) => a.date.localeCompare(b.date))[0];
   return `${hdrSub(t("activity"))}<div class="scroll activity-scroll">
     <p class="pad muted">${t("activity_note")}</p>
-    <div class="streak-pair">${[["current_streak", stats.current], ["longest_streak", stats.longest]].map(([label, n]) => `<div><span>${t(label)}</span><strong>${t("streak_days", { n })}</strong></div>`).join("")}</div>
+    <div class="streak-pair">${[["month_count", monthCount()], ["total_count", total]].map(([label, n]) => `<div><span>${t(label)}</span><strong>${daysLabel(n)}</strong></div>`).join("")}</div>
     <p class="pad muted">${t("streak_kind")}</p>
-    <section class="panel activity-panel"><h2>${t("streak_goal")}</h2><div class="chips">${[7,14,30,50].map(n => `<button class="chip ${S.streakGoal === n ? "on" : ""}" data-a="streakGoal" data-v="${n}" aria-pressed="${S.streakGoal === n}">${t("streak_days", { n })}</button>`).join("")}</div><label for="streak-progress">${t("goal_progress", { n: stats.current, goal: S.streakGoal })}</label><progress id="streak-progress" max="${S.streakGoal}" value="${Math.min(stats.current, S.streakGoal)}"></progress>${stats.current >= S.streakGoal ? `<p>${t("goal_reached")}</p>` : ""}</section>
+    <section class="panel activity-panel"><h2>${t("streak_goal")}</h2><div class="chips">${[7,14,30,50].map(n => `<button class="chip ${S.streakGoal === n ? "on" : ""}" data-a="streakGoal" data-v="${n}" aria-pressed="${S.streakGoal === n}">${t("streak_days", { n })}</button>`).join("")}</div><label for="streak-progress">${t("goal_progress", { n: total, goal: S.streakGoal })}</label><progress id="streak-progress" max="${S.streakGoal}" value="${Math.min(total, S.streakGoal)}"></progress>${total >= S.streakGoal ? `<p>${t("goal_reached")}</p>` : ""}</section>
     <section class="panel activity-panel"><h2>${t("weekly_mood")}</h2><p class="muted">${activityDate(dates[0])} – ${activityDate(today)}</p>
       <div class="mood-week">${dates.map(date => { const row = rows.find(r => r.date === date), mood = row && MOODS.find(m => m.id === row.mood); return `<div class="mood-day ${date === today ? "today" : ""}" aria-label="${activityDate(date)}: ${mood ? L(mood) : t("mood_missing")}"><small>${activityDate(date, { weekday: "narrow" })}</small>${mood ? moodFace(mood, 32) : '<span class="mood-gap" aria-hidden="true">—</span>'}<small>${activityDate(date, { day: "numeric" })}</small></div>`; }).join("")}</div>
       ${!rows.length ? `<p class="activity-empty">${t("mood_empty")}</p>` : `<h3>${t("mood_distribution")}</h3><div class="mood-distribution">${MOODS.map(m => { const count = rows.filter(r => r.mood === m.id).length; if (!count) return ""; return `<div><span>${L(m)}</span><meter min="0" max="${rows.length}" value="${count}" aria-label="${L(m)}"></meter><b>${Math.round(count / rows.length * 100)}%</b></div>`; }).join("")}</div>`}
@@ -75,7 +80,7 @@ function activityScreen() {
     </section>
     <section class="panel activity-panel"><h2>${t("badges")}</h2><div class="activity-achievement">${icon("sun")}<div><b>${t("first_badge")}</b><small>${first ? t("earned_date", { date: activityDate(first.date) }) : t("first_badge_note") + " · " + t("badge_locked")}</small></div>${first ? icon("check") : icon("lock")}</div></section>
     ${S.history.length ? `<section class="panel activity-panel"><h2>${t("mood_history")}</h2>${[...S.history].sort((a,b) => b.date.localeCompare(a.date)).slice(0, 14).map(row => `<div class="activity-log"><time datetime="${row.date}">${activityDate(row.date)}</time><span>${L(MOODS.find(m => m.id === row.mood))}</span></div>`).join("")}</section>` : ""}
-    <div class="pad"><button class="btn quiet block" data-a="sampleWeek">${t("demo_week")}</button></div>
+    ${DEMO ? `<div class="pad"><button class="btn quiet block" data-a="sampleWeek">${t("demo_week")}</button></div>` : ""}
   </div>`;
 }
 
@@ -108,11 +113,51 @@ function callName() {
 const zhTag = () => (S.lang === "hs" ? "zh-Hans" : "zh-Hant");
 const ago = a => (a ? t(a[1] === "h" ? "ago_h" : "ago_d", { n: a[0] }) : t("ago_now"));
 const hueFor = name => ["#3c6b4a", "#17616d", "#a8361f", "#6b4c00", "#5b4a8c"][[...name].reduce((s, c) => s + c.charCodeAt(0), 0) % 5];
+/* A Mandarin-speaking Counselor is preferred when the Member says so; until they do, the app language is the hint. */
+const wantsZh = () => (S.guideZh == null ? S.lang !== "en" : S.guideZh);
+/* Circle posts are for that Circle's members; anything the Member hid or reported stays hidden. */
+const canSee = p => !!p && !p.hiddenForMe && (!p.circle || p.mine || S.joined.includes(p.circle));
+const circleName = id => (CIRCLES.find(c => c.id === id) || {}).name || "";
+/* A new Member starts in the Circle for their main Focus Area, in their language. */
+function suggestedCircles() {
+  const fit = CIRCLES.filter(c => c.focus === S.mainFocus);
+  const pick = fit.find(c => (c.lang !== "EN") === (S.lang !== "en")) || fit[0];
+  return pick ? [pick.id] : [];
+}
 const suggestions = () => COUNSELORS.filter(c => !c.full && c.states.includes(S.state))
   .sort((a, b) => (b.focus.includes(S.mainFocus) - a.focus.includes(S.mainFocus))
     || (b.focus.filter(f => S.focuses.includes(f)).length - a.focus.filter(f => S.focuses.includes(f)).length)
-    || ((S.lang !== "en") * (b.zh - a.zh))).slice(0, 3);
+    || (wantsZh() * (b.zh - a.zh))).slice(0, 3);
 function earn(n) { const got = Math.max(0, Math.min(n, 25 - S.earnedToday)); S.seeds += got; S.earnedToday += got; return got; }
+/* One small thank-you a day for taking part. More posts never earn more. */
+function earnOnce(kind, n) {
+  const today = dayKey();
+  if (S.bonusDay[kind] === today) return 0;
+  S.bonusDay[kind] = today;
+  return earn(n);
+}
+/* ---------- saved on this device ----------
+   A tester's check-ins, posts and Companion survive closing the app. Review links that
+   carry ?parameters are throwaway and never read or change what is saved. */
+const SAVE_KEY = "brc-crossings-v1";
+const SAVED = ["lang", "member", "age", "terms", "optMatch", "optJournal", "focuses", "mainFocus", "state", "species", "baseSpecies", "petName", "companionChosen",
+  "seeds", "earnedToday", "bonusDay", "activityDay", "mood", "checkedIn", "daily", "dMedNote", "dLine", "checkinSafety", "phqSafety", "phqLast", "history", "streakGoal",
+  "joined", "owned", "wear", "helpful", "translated", "seen", "posts", "posted", "match", "dm", "realName", "nameShow", "savedPractices", "journalEntries",
+  "friendships", "friendMessages", "shareMood", "guideZh", "careVolume", "petHinted", "scene"];
+const PERSIST = !location.search;
+function saveState() {
+  if (!PERSIST) return;
+  try { const out = {}; SAVED.forEach(k => { out[k] = S[k]; }); localStorage.setItem(SAVE_KEY, JSON.stringify(out)); } catch (e) { /* private mode or full storage: carry on unsaved */ }
+}
+function loadState() {
+  if (!PERSIST) return false;
+  try {
+    const saved = JSON.parse(localStorage.getItem(SAVE_KEY) || "null");
+    if (!saved || typeof saved !== "object") return false;
+    SAVED.forEach(k => { if (k in saved && saved[k] !== undefined) S[k] = saved[k]; });
+    return true;
+  } catch (e) { return false; }
+}
 function toast(msg, ic = "seed") { S.toast = { msg, ic, id: Date.now() }; }
 /* Home, Circles, Companion and Me are tab roots: going to one switches tabs instead of stacking a copy. */
 const TAB_ROOTS = ["home", "circles", "companion", "me"];
@@ -165,6 +210,10 @@ const ICONS = {
   sun: '<circle cx="12" cy="12" r="3.8"/><path d="M12 3v2.2M12 18.8V21M3 12h2.2M18.8 12H21M5.6 5.6l1.6 1.6M16.8 16.8l1.6 1.6M5.6 18.4l1.6-1.6M16.8 7.2l1.6-1.6"/>',
   wind: '<path d="M3.5 9h10a2.8 2.8 0 1 0-2.8-2.8"/><path d="M3.5 13.5h14a2.8 2.8 0 1 1-2.8 2.8"/><path d="M3.5 18h6"/>',
   swap: '<path d="M7 7.5h11l-3-3M17 16.5H6l3 3"/>',
+  more: '<circle cx="5.5" cy="12" r="1.3"/><circle cx="12" cy="12" r="1.3"/><circle cx="18.5" cy="12" r="1.3"/>',
+  flag: '<path d="M6 20.5V4.5"/><path d="M6 5h11.5l-2.2 3.6 2.2 3.6H6"/>',
+  trash: '<path d="M5 7h14M10 7V4.5h4V7"/><path d="M7 7l.8 12.5h8.4L17 7"/>',
+  hide: '<path d="M4 12s3-5.5 8-5.5 8 5.5 8 5.5-3 5.5-8 5.5-8-5.5-8-5.5z"/><path d="M5 5l14 14"/>',
   touch: '<path d="M9 11V5.8a1.6 1.6 0 0 1 3.2 0V11"/><path d="M12.2 10.2a1.6 1.6 0 0 1 3.2 0v1.2a1.6 1.6 0 0 1 3.2 0v3.2c0 3-2.2 5.4-5.4 5.4h-.8c-2 0-3.4-.9-4.5-2.5L5.6 14a1.6 1.6 0 0 1 2.6-1.9L9 13"/>',
 };
 function icon(name, cls = "") {
@@ -205,15 +254,69 @@ function initWorld() {
 }
 function syncWorld() {
   if (!world) return;
-  world.set({ showPet: S.screen !== "onboard" || (S.step === 5 && S.companionChosen), species: S.species, mood: S.checkedIn ? S.mood : null, asleep: S.away && S.screen !== "onboard", wear: S.wear, timeOverride: S.timeOverride });
+  world.set({ showPet: S.screen !== "onboard" || (S.step === 5 && S.companionChosen), species: S.species, mood: S.checkedIn ? S.mood : null, asleep: S.away && S.screen !== "onboard", wear: S.wear, timeOverride: S.timeOverride, scene: sceneNow() });
 }
 function mountStage() {
   const el = document.querySelector("[data-stage]");
   if (!el) return;
-  if (world) { world.attach(el, S.breathing ? "breathe" : el.dataset.stage); return; }
+  if (world) { world.attach(el, S.breathing ? "breathe" : el.dataset.stage); placeScene(el); return; }
   const h = hour();
   el.style.background = h < 6.5 || h >= 19.7 ? "linear-gradient(180deg,#1b2446,#363f73)" : "linear-gradient(180deg,#7dc4ed,#d6f0ff)";
   if (worldFailed && !el.querySelector(".fallback")) el.insertAdjacentHTML("afterbegin", `<div class="fallback">${t("three_d_off")}</div>`);
+}
+/* ---------- scenes: the Companion inside a photo ---------- */
+const sceneSize = {}, sceneLoading = {};
+const sceneNow = () => SCENES.find(s => s.id === S.scene && s.photo) || null;
+const scenePhoto = (sc, w = 1200) => `https://images.unsplash.com/photo-${sc.photo}?w=${w}&q=75&auto=format&fit=crop`;
+function placeScene(el) {
+  const sc = sceneNow();
+  if (!sc || !["companion", "home"].includes(el.dataset.stage)) { el.classList.remove("photo-scene"); return; }
+  if (!sceneSize[sc.id] && !sceneLoading[sc.id]) {
+    sceneLoading[sc.id] = true;
+    const img = new Image();
+    img.onload = () => { sceneSize[sc.id] = [img.naturalWidth, img.naturalHeight]; const now = document.querySelector("[data-stage]"); if (now) placeScene(now); };
+    img.onerror = () => { sceneLoading[sc.id] = false; };
+    img.src = scenePhoto(sc);
+  }
+  const W = el.clientWidth, H = el.clientHeight, [iw, ih] = sceneSize[sc.id] || [3, 2];
+  // The Companion's speech panel lies over the foot of the stage, so the picture is framed in the part that shows
+  // and fades into the page below it.
+  const talk = el.parentElement.querySelector(".talk");
+  const F = Math.max(120, Math.min(H - 24, talk ? talk.getBoundingClientRect().top - el.getBoundingClientRect().top + 14 : H));
+  // Cover that frame, a little closer in, with the Companion's spot centred and its feet near the bottom of it.
+  const k = Math.max(W / iw, F / ih) * 1.2, dw = iw * k, dh = ih * k;
+  const left = Math.min(0, Math.max(W - dw, W / 2 - sc.at[0] * dw)), top = Math.min(0, Math.max(F - dh, F * 0.84 - sc.at[1] * dh));
+  el.classList.add("photo-scene");
+  Object.assign(el.style, { backgroundImage: `linear-gradient(180deg, rgba(230,243,238,0) ${Math.round(F - 34)}px, #e6f3ee ${Math.round(F + 10)}px), url("${scenePhoto(sc)}")`,
+    backgroundSize: `100% 100%, ${dw}px ${dh}px`, backgroundPosition: `0 0, ${left}px ${top}px` });
+  if (sc.fx && !REDUCED_UI.matches && !el.querySelector(".scene-fx")) el.insertAdjacentHTML("beforeend", `<canvas class="scene-fx" data-fx="${sc.fx}" aria-hidden="true"></canvas>`);
+  world.setAnchor({ x: left + sc.at[0] * dw, y: top + sc.at[1] * dh, h: sc.size * dh });
+}
+/* Drifting petals or snow over a scene that has them. */
+const fxBits = [];
+(function sceneFx(now) {
+  requestAnimationFrame(sceneFx);
+  const cv = document.querySelector(".scene-fx");
+  if (!cv || document.hidden) return;
+  const W = cv.clientWidth, H = cv.clientHeight, d = Math.min(window.devicePixelRatio || 1, 2), snow = cv.dataset.fx === "snow", t = now / 1000;
+  if (cv.width !== Math.round(W * d)) { cv.width = Math.round(W * d); cv.height = Math.round(H * d); }
+  const c = cv.getContext("2d"); c.setTransform(d, 0, 0, d, 0, 0); c.clearRect(0, 0, W, H);
+  while (fxBits.length < 34) fxBits.push({ x: Math.random(), y: Math.random(), s: .6 + Math.random() * .8, p: Math.random() * 9, r: Math.random() * 6 });
+  for (const q of fxBits) {
+    q.y += (snow ? .0011 : .0008) * q.s; q.x += (snow ? 0 : .0006) + Math.sin(t * .8 + q.p) * .0007; q.r += .02;
+    if (q.y > 1.03) { q.y = -.03; q.x = Math.random(); } if (q.x > 1.03) q.x = -.03;
+    c.save(); c.translate(q.x * W, q.y * H);
+    if (snow) { c.fillStyle = `rgba(255,255,255,${.5 + .3 * q.s / 1.4})`; c.beginPath(); c.arc(0, 0, 1 + q.s * 1.3, 0, 7); c.fill(); }
+    else { c.rotate(q.r); c.scale(1, .55 + .45 * Math.sin(t * 2 + q.p)); c.fillStyle = "rgba(255,196,214,.85)"; c.beginPath(); c.ellipse(0, 0, 3.6 * q.s, 2.4 * q.s, 0, 0, 7); c.fill(); }
+    c.restore();
+  }
+})(0);
+function scenePicker() {
+  const card = sc => { const on = S.scene === sc.id;
+    return `<button class="scene-card ${on ? "on" : ""} ${sc.photo ? "" : "live"}" data-a="scene" data-v="${sc.id}" aria-pressed="${on}" ${sc.photo ? `style="background-image:url('${scenePhoto(sc, 320)}')"` : ""}><span><b>${L(sc)}</b>${sc.people ? `<small>${t("scene_people")}</small>` : sc.photo ? "" : `<small>${t("scene_live")}</small>`}</span></button>`; };
+  const cur = sceneNow();
+  return `<h2 class="section-h">${t("scene_title")}</h2><p class="pad muted scene-sub">${t("scene_sub", { pet: esc(S.petName) })}</p>
+    <div class="scene-row" role="group" aria-label="${t("scene_title")}">${SCENES.map(card).join("")}</div>${cur ? `<p class="pad muted scene-credit">${t("scene_credit", { who: esc(cur.credit) })}</p>` : ""}`;
 }
 function thumb(sp, item) {
   if (world) { try { return `<img src="${world.thumb(sp, item)}" alt="">`; } catch (e) { /* fall through */ } }
@@ -259,9 +362,9 @@ function postPanel(p, o = {}) {
   const helpfulOn = S.helpful[p.id];
   const c = p.answer ? counselor(p.answer.by) : null;
   const ans = p.answer ? textFor(p.answer.text, "en", tr) : null;
-  const n = p.replies.filter(r => !r.held || r.mine).length;
+  const n = p.replies.filter(r => !r.hiddenForMe && (!r.held || r.mine)).length;
   return `<article class="post ${lit && !o.full ? "lit" : ""} ${S.enter === p.id ? "enter" : ""}">
-    <div class="post-head">${avatar(p.author, p.anon)}<div class="who"><b>${esc(p.anon ? t("anonymous") : p.author)}</b><span>${ago(p.ago)} · ${focusName(p.focus)}</span></div>${state}</div>
+    <div class="post-head">${avatar(p.author, p.anon)}<div class="who"><b>${esc(p.anon ? t("anonymous") : p.author)}</b><span>${ago(p.ago)} · ${p.circle ? esc(circleName(p.circle)) : focusName(p.focus)}</span></div>${state}<button class="more-btn" data-a="postMenu" data-v="${p.id}" aria-label="${t("more_actions")}">${icon("more")}</button></div>
     ${!p.anon && !p.mine && p.memberId ? `<div class="friend-post">${friendButton(p.memberId)}</div>` : ""}
     <div class="post-body" ${o.full ? "" : `data-a="thread" data-v="${p.id}" style="cursor:pointer"`}><p lang="${body.lang}">${esc(body.text)}</p>
       ${tr ? `<span class="tr-note">${icon("translate")}${t("machine_tr")}</span>` : ""}</div>
@@ -305,10 +408,7 @@ function talkTo(node, opts = {}) {
   if (n && n.emote && world) world.emote(n.emote);
   if (!opts.silent) render();
 }
-function checkInFrom(mood) {
-  S.mood = mood;
-  actions.dailyOpen();
-}
+function checkInFrom(mood) { actions.quickCheckin(mood); }
 function startBreathe() {
   if (S.screen !== "companion") { S.stack = []; S.screen = "companion"; }
   S.breathing = true; if (world) world.breathe(true); render(true);
@@ -382,7 +482,7 @@ const RESTFUL = ["bye", "glad", "proud", "posted", "r_good", "r_great", "dance",
 function pickAmbient() {
   const seen = S.talk.seen, h = hour();
   const next = [
-    ["nudge_answer", !S.seen.p1],
+    ["nudge_answer", !S.seen.p1 && canSee(S.posts.find(p => p.id === "p1"))],
     ["nudge_guide", !S.match && licensedHere() && S.optMatch],
     ["nudge_circle", S.focuses.includes("parenting")],
     ["amb_morning", h >= 5 && h < 11],
@@ -612,7 +712,17 @@ function mountHomeHero() {
   heroCleanup = () => { borders.forEach(border => border.destroy()); engine.destroy(); motion.removeEventListener('change', syncPause); document.removeEventListener('visibilitychange', syncPause); };
 }
 function home() {
-  return S.member ? memberHome() : `<div class="scroll home-entry">${homeHero()}</div>`;
+  return S.member ? memberHome() : `<div class="scroll home-entry">${homeHero()}${installCard()}</div>`;
+}
+/* ---------- install as an app ---------- */
+let installEvent = null;
+const standalone = () => matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
+window.addEventListener("beforeinstallprompt", e => { e.preventDefault(); installEvent = e; render(); });
+window.addEventListener("appinstalled", () => { installEvent = null; render(); });
+function installCard() {
+  if (standalone()) return "";
+  const ios = /iphone|ipad|ipod/i.test(navigator.userAgent);
+  return `<section class="panel install-card">${icon("phone")}<div><b>${t("install_title")}</b><p class="muted">${t(installEvent ? "install_ready" : ios ? "install_ios" : "install_other")}</p>${installEvent ? `<button class="btn primary sm" data-a="install">${t("install_btn")}</button>` : ""}</div></section>`;
 }
 /* ---------- the Member's Home ----------
    What changed for them, then friends, then their Circles, then the rest of the community.
@@ -628,15 +738,15 @@ function todayCard() {
   const sub = !S.checkedIn ? t("daily_sub") : S.daily.done ? dailySummary() : L(m);
   return `<section class="panel today-card">${m ? `<span class="today-pet">${moodFace(m, 44)}</span>` : `<span class="today-pet">${thumb(S.species)}</span>`}
     <span class="today-copy"><b>${S.checkedIn ? t("checked_in") : t("daily_title")}</b><span class="muted">${sub}</span>
-    ${S.checkedIn ? `<button class="btn quiet sm" data-a="tab" data-v="companion">${t("home_visit", { pet: esc(S.petName) })}</button>` : `<button class="btn sun sm" data-a="dailyOpen">${t("daily_start")}</button>`}</span></section>`;
+    ${S.checkedIn ? `<button class="btn quiet sm" data-a="tab" data-v="companion">${t("home_visit", { pet: esc(S.petName) })}</button>` : `<button class="btn sun sm" data-a="tab" data-v="companion">${t("daily_start")}</button>`}</span></section>`;
 }
 function memberHome() {
   const shown = new Set(), take = list => list.filter(p => !shown.has(p.id) && shown.add(p.id));
-  const focuses = CIRCLES.filter(c => S.joined.includes(c.id)).map(c => c.focus);
-  const fresh = take(S.posts.filter(p => (p.unseenAnswer || p.mine) && !S.seen[p.id]));
-  const friends = take(S.posts.filter(p => !p.anon && p.memberId && isFriend(p.memberId)));
-  const circles = take(S.posts.filter(p => focuses.includes(p.focus)));
-  const rest = take(S.posts);
+  const all = S.posts.filter(canSee);
+  const fresh = take(all.filter(p => (p.unseenAnswer || p.mine) && !S.seen[p.id]));
+  const friends = take(all.filter(p => !p.anon && p.memberId && isFriend(p.memberId)));
+  const circles = take(all.filter(p => S.joined.includes(p.circle)));
+  const rest = take(all);
   const hasFriends = MEMBERS.some(m => isFriend(m.id)), replies = friendReplies();
   const posts = list => list.map(p => postPanel(p, { preview: true })).join("");
   const empty = (key, action, v, label) => `<div class="feed-empty"><p>${t(key)}</p><button class="btn quiet sm" data-a="${action}" data-v="${v}">${label}</button></div>`;
@@ -645,18 +755,21 @@ function memberHome() {
   const hello = `<div class="feed-hello"><h1>${greeting()}</h1><p class="muted">${t("home_sub")}</p></div>`;
   const ask = `<button class="askfield" data-a="go" data-v="ask">${icon("ask")}<span>${t("ask_placeholder")}</span></button>`;
   const newBlock = fresh.length ? section(t("home_new"), posts(fresh)) : "";
-  const friendsBlock = section(t("home_friends"), !hasFriends ? empty("home_no_friends", "side", "friends", t("friends_title"))
-    : friends.length ? posts(friends) : `<div class="feed-empty"><p>${t("home_friends_quiet")}</p></div>`, hasFriends ? seeAll("side", "friends") : "");
+  // No friends yet: no empty block near the top, only a quiet link at the end.
+  const friendsBlock = !hasFriends ? "" : section(t("home_friends"), friends.length ? posts(friends) : `<div class="feed-empty"><p>${t("home_friends_quiet")}</p></div>`, seeAll("go", "friends"));
+  const findFriends = hasFriends ? "" : `<div class="pad"><button class="btn quiet block" data-a="go" data-v="friends">${icon("circles")}${t("home_find_friends")}</button></div>`;
+  const today = S.checkedIn ? dailyResources()[0] : RESOURCES[0];
+  const practiceBlock = section(t("d_for_today"), `<button class="guide practice-today" data-a="openPractice" data-v="${today.id}"><span class="av">${icon("learn")}</span><span class="t"><b>${esc(L(today.t))}</b><span>${t("home_practice")} · ${t("library_minutes", { n: today.min })}</span></span>${icon("chev")}</button>`, seeAll("go", "learn"));
   const repliesBlock = hasFriends && replies.length ? section(t("home_friend_replies"), `<div class="list">${replies.map(({ p, r, m }) => {
       const tx = textFor(r.text, r.orig || "en", false);
       return `<button class="li" data-a="thread" data-v="${p.id}">${avatar(m.name, false)}<span class="t"><b>${esc(t(p.anon ? "home_replied_anon" : "home_replied_post", { name: m.name, author: p.author }))}</b><small lang="${tx.lang}">${esc(tx.text)}</small></span>${icon("chev")}</button>`; }).join("")}</div>
       <p class="feed-note">${icon("lock")}<span>${t("home_named_only")}</span></p>`) : "";
   // A Circle post already shown above is not repeated; "no posts" only when the Circles really have none.
-  const circlesAny = S.posts.some(p => focuses.includes(p.focus));
-  const circlesBlock = !focuses.length ? section(t("home_circles"), empty("home_no_circles", "tab", "circles", t("circles")))
+  const circlesAny = all.some(p => S.joined.includes(p.circle));
+  const circlesBlock = !S.joined.length ? section(t("home_circles"), empty("home_no_circles", "tab", "circles", t("circles")))
     : circles.length || !circlesAny ? section(t("home_circles"), circles.length ? posts(circles) : `<div class="feed-empty"><p>${t("no_posts")}</p></div>`, seeAll("tab", "circles")) : "";
   const restBlock = rest.length ? section(t("home_more"), posts(rest)) : "";
-  return `${hdrMain()}<div class="scroll feed-scroll">${hello}${todayCard()}${ask}${guideCard()}${newBlock}${friendsBlock}${repliesBlock}${circlesBlock}${restBlock}<div style="height:16px"></div></div>`;
+  return `${hdrMain()}<div class="scroll feed-scroll">${hello}${todayCard()}${ask}${newBlock}${guideCard()}${practiceBlock}${friendsBlock}${repliesBlock}${circlesBlock}${restBlock}${findFriends}<div style="height:16px"></div></div>`;
 }
 function askScreen() {
   const friends = MEMBERS.filter(m => S.friendships[m.id] === "friend");
@@ -680,27 +793,30 @@ function sendFriendMessage() {
 function compose() {
   const can = S.draft.trim().length > 3;
   const me = displayName(), persona = me ? S.persona : "anon";
-  return `${hdrSub(t("ask_title"))}<div class="scroll pad">
-    <span class="label">${t("focus_area")}</span>
-    <div class="chips" style="margin-bottom:18px">${FOCUS.map(f => `<button class="chip ${S.draftFocus === f.id ? "on" : ""}" data-a="draftFocus" data-v="${f.id}" aria-pressed="${S.draftFocus === f.id}">${L(f)}</button>`).join("")}</div>
+  const mine = CIRCLES.filter(c => S.joined.includes(c.id)), circle = mine.find(c => c.id === S.draftCircle);
+  const where = mine.length ? `<span class="label">${t("post_where")}</span>
+    <div class="chips" style="margin-bottom:18px"><button class="chip ${circle ? "" : "on"}" data-a="draftCircle" data-v="" aria-pressed="${!circle}">${t("post_everyone")}</button>${mine.map(c => `<button class="chip ${circle === c ? "on" : ""}" data-a="draftCircle" data-v="${c.id}" aria-pressed="${circle === c}">${esc(c.name)}</button>`).join("")}</div>` : "";
+  const topic = circle ? "" : `<span class="label">${t("focus_area")}</span>
+    <div class="chips" style="margin-bottom:18px">${FOCUS.map(f => `<button class="chip ${S.draftFocus === f.id ? "on" : ""}" data-a="draftFocus" data-v="${f.id}" aria-pressed="${S.draftFocus === f.id}">${L(f)}</button>`).join("")}</div>`;
+  return `${hdrSub(t("ask_title"))}<div class="scroll pad">${where}${topic}
     <label class="label" for="draft">${t("ask_placeholder")}</label>
     <textarea class="field" id="draft" rows="6" placeholder="${t("ask_placeholder")}" data-model="draft">${esc(S.draft)}</textarea>
     <span class="label" style="margin-top:18px">${t("post_as")}</span>
     ${me ? `<div class="seg" role="group">${[["anon", "mask", t("anonymous")], ["named", "me", esc(me)]].map(([v, ic, lb]) => `<button class="${persona === v ? "on" : ""}" data-a="persona" data-v="${v}" aria-pressed="${persona === v}">${icon(ic)}${lb}</button>`).join("")}</div>`
       : `<div class="seg"><button class="on" aria-pressed="true" disabled style="color:var(--forest)">${icon("mask")}${t("anonymous")}</button></div>`}
     <p class="muted" style="display:flex;gap:8px;margin:10px 2px 0">${icon(persona === "anon" ? "lock" : "me")}<span>${me ? (persona === "anon" ? t("anon_note") : t("named_note")) : `${t("anon_note")} ${t("always_anon")}`}</span></p>
-    <button class="btn primary block" style="margin-top:22px" data-a="post" ${can ? "" : "disabled"}>${t("post")}</button>
+    <button class="btn primary block" style="margin-top:22px" data-a="post" ${can ? "" : "disabled"}>${icon(persona === "anon" ? "mask" : "me")}${persona === "anon" ? t("post_anon") : esc(t("post_named", { who: me }))}</button>
   </div>`;
 }
 function thread() {
   const p = S.posts.find(x => x.id === S.thread) || S.posts[0];
   const tr = S.translated[p.id];
-  const visible = p.replies.filter(r => !r.held || r.mine);
+  const visible = p.replies.map((r, i) => ({ r, i })).filter(({ r }) => !r.hiddenForMe && (!r.held || r.mine));
   const me = displayName(), who = S.replyPersona === "anon" || !me ? t("anonymous") : me;
   return `${hdrSub(focusName(p.focus))}<div class="scroll"><div style="height:6px"></div>${postPanel(p, { full: true })}
     ${visible.length ? `<h2 class="section-h" style="font-size:var(--fs-m)">${visible.length === 1 ? t("reply_1") : t("replies_n", { n: visible.length })}</h2>
-      <div class="list">${visible.map(r => { const tx = textFor(r.text, r.orig || "en", tr && !r.mine); const anon = r.author === "Anonymous";
-        return `<div class="li" style="align-items:flex-start">${avatar(r.author, anon)}<span class="t"><b>${anon ? t("anonymous") : esc(r.author)}${r.held ? ` <span class="tag held">${t("held")}</span>` : ""}</b><span lang="${tx.lang}">${esc(tx.text)}</span></span></div>`; }).join("")}</div>` : ""}
+      <div class="list">${visible.map(({ r, i }) => { const tx = textFor(r.text, r.orig || "en", tr && !r.mine); const anon = r.author === "Anonymous";
+        return `<div class="li" style="align-items:flex-start">${avatar(r.author, anon)}<span class="t"><b>${anon ? t("anonymous") : esc(r.author)}${r.held ? ` <span class="tag held">${t("held")}</span>` : ""}</b><span lang="${tx.lang}">${esc(tx.text)}</span></span><button class="more-btn" data-a="postMenu" data-v="${p.id}:${i}" aria-label="${t("more_actions")}">${icon("more")}</button></div>`; }).join("")}</div>` : ""}
     <div style="height:16px"></div></div>
     <div class="as-wrap"><div class="as">${icon(S.replyPersona === "anon" || !me ? "mask" : "me")}<span>${t("replying_as", { who: esc(who) })}</span>${me ? `<button data-a="replyPersona">${icon("swap")}${t("switch_identity")}</button>` : ""}</div>
     <div class="composer"><input placeholder="${t("reply_placeholder")}" data-model="replyDraft" value="${esc(S.replyDraft)}" aria-label="${t("reply")}"><button class="btn primary" data-a="reply" aria-label="${t("reply")}">${icon("send")}</button></div></div>`;
@@ -710,7 +826,7 @@ function thread() {
 function findHelpList(level = "crisis") {
   if (S.state === "INTL") return `<a class="line" href="https://findahelpline.com" target="_blank" rel="noopener"><span class="t"><span class="num">${t("intl_help")}</span><small>${t("intl_help_sub")}</small></span><span class="call ext">${icon("external")}</span></a>`;
   const ids = level === "reach" ? ["988"] : LINES_FOR[S.state] || LINES_FOR.OTHER;
-  const lines = ids.map(id => { const l = CRISIS_LINES[id]; return `<a class="line" href="tel:${l.call}" aria-label="${t("call", { n: l.n })}"><span class="t"><span class="num">${l.n}</span><small>${level === "reach" && id === "988" ? t("line_988_reach") : L(l.d)}</small></span><span class="call">${icon("phone")}</span></a>`; }).join("");
+  const lines = ids.map(id => { const l = CRISIS_LINES[id]; return `<a class="line" href="tel:${l.call}" aria-label="${t("call", { n: l.n })}"><span class="t"><span class="num">${l.n}</span><small>${level === "reach" && id === "988" ? t("line_988_reach") : L(l.d)}</small></span><span class="call">${icon("phone")}</span></a>${id === "988" ? `<a class="line line-text" href="sms:988"><span class="t"><span class="txt">${t("text_988")}</span></span><span class="call ext">${icon("chat")}</span></a>` : ""}`; }).join("");
   return S.state ? lines : lines + `<a class="line" href="https://findahelpline.com" target="_blank" rel="noopener"><span class="t"><span class="num" style="font-size:var(--fs-m)">${t("intl_help")}</span><small>${t("intl_help_sub")}</small></span><span class="call ext">${icon("external")}</span></a>`;
 }
 function guide() {
@@ -729,19 +845,22 @@ function guide() {
   }
   const list = suggestions(), cur = S.match ? counselor(S.match) : null;
   return `${hdrSub(t("my_guide"))}<div class="scroll"><p class="pad" style="margin:0;color:var(--ink-2)">${t("guide_intro")}</p>
+    <div class="pad" style="padding-top:0"><button class="chip ${wantsZh() ? "on" : ""}" data-a="guideZh" aria-pressed="${wantsZh()}">${wantsZh() ? icon("check") : ""}${t("guide_zh")}</button></div>
     ${cur ? guideCard() : ""}
     ${list.length ? list.map(c => `<article class="panel cc"><div class="cc-top"><span class="av" style="background:${c.hue};width:48px;height:48px">${initials(c.name)}</span><div><div class="nm">${esc(c.name)}</div><div class="meta">${c.langs} · ${t("licensed_in", { s: c.states.join(", ") })}</div></div></div>
-      <p>${L(c.bio)}</p>${S.match === c.id ? `<span class="tag answer">${icon("check")}${t("my_guide")}</span>` : `<button class="btn quiet block" data-a="match" data-v="${c.id}">${t("choose_guide")}</button>`}</article>`).join("")
+      <p>${L(c.bio)}</p>${c.approaches && c.approaches.length ? `<p class="approaches">${t("guide_approaches")}: ${c.approaches.map(id => `<span class="kind-chip kind-${id}">${L(supportKind(id))}</span>`).join("")}</p>` : ""}${S.match === c.id ? `<span class="tag answer">${icon("check")}${t("my_guide")}</span>` : `<button class="btn quiet block" data-a="match" data-v="${c.id}">${t("choose_guide")}</button>`}</article>`).join("")
       : `<div class="notice"><h3>${t("all_full_title")}</h3><p>${t("all_full_body")}</p><button class="btn primary" data-a="toast" data-v="waitlisted">${t("waitlist")}</button></div>`}
     <div style="height:12px"></div></div>`;
 }
 function dm() {
-  const c = counselor(S.match) || COUNSELORS[0];
+  const c = counselor(S.match);
+  if (!c) return guide();
+  const mood = S.shareMood && S.checkedIn ? MOODS.find(x => x.id === S.mood) : null;
   const msgs = S.dm.map(m => m.type === "book"
     ? `<div class="bookcard"><div class="top">${icon("calendar")}${t("book_title")} · ${esc(c.name.split(",")[0])}</div><p>${t("book_note")}</p>
        <a class="btn primary block" href="https://www.bridgerivercounseling.com/services" target="_blank" rel="noopener" data-a="booked">${t("book_cta")}${icon("external")}</a></div>`
     : `<div class="bubble ${m.me ? "me" : "them"}">${m.me ? "" : `<span class="from">${esc(c.name)}</span>`}${esc(m.key ? t(m.key, { me: callName(), c: c.name.split(",")[0] }) : m.text)}</div>`).join("");
-  return `${hdrSub(esc(c.name))}<div class="dm-banner">${icon("shield")}<span>${t("dm_banner")}</span></div>
+  return `${hdrSub(esc(c.name))}<div class="dm-banner">${icon("shield")}<span>${t("dm_banner")}</span></div>${mood ? `<div class="dm-mood">${moodFace(mood, 22)}<span>${t("dm_mood_shared", { mood: L(mood) })}</span></div>` : ""}
     <div class="scroll" id="dmScroll"><div style="height:12px"></div>${msgs}<div style="height:8px"></div></div>
     <div class="composer"><input placeholder="${t("message_ph", { name: esc(c.name.split(" ")[0]) })}" data-model="dmDraft" value="${esc(S.dmDraft)}" aria-label="${t("message")}"><button class="btn primary" data-a="sendDm" aria-label="${t("send")}">${icon("send")}</button></div>`;
 }
@@ -777,7 +896,8 @@ function carePanel() {
   const button = (id, key) => `<button class="btn quiet" data-a="care" data-v="${id}" aria-pressed="${S.care === id}">${t(key)}</button>`;
   let body = "";
   if (S.care === "listen") body = `<p>${t("care_audio_note")}</p><div class="care-options">${["ambient","rain","waves"].map(kind => `<button class="btn quiet" data-a="carePlay" data-v="${kind}" aria-pressed="${S.careSound === kind}">${S.careSound === kind ? icon("check") : ""}${t("care_" + kind)}</button>`).join("")}</div><label class="label" for="care-volume">${t("care_volume")}</label><input id="care-volume" type="range" min="0" max="100" value="${S.careVolume}"><button class="btn primary" data-a="careStop" ${S.careSound ? "" : "disabled"}>${t("care_stop")}</button>`;
-  if (S.care === "write") body = `<p>${t("care_journal_note")}</p><label class="label" for="journal-draft">${t(happy ? "care_good_prompt" : "care_prompt")}</label><textarea class="field" id="journal-draft" rows="5" data-model="journalDraft">${esc(S.journalDraft)}</textarea><button class="btn primary block" data-a="saveJournal" ${S.journalDraft.trim() ? "" : "disabled"}>${t("care_save")}</button>${S.journalEntries.length ? `<h3>${t("care_entries")}</h3>${S.journalEntries.map(entry => `<article class="care-entry"><small>${activityDate(entry.date)}</small><p>${esc(entry.text)}</p></article>`).join("")}` : ""}`;
+  if (S.care === "write" && !S.optJournal) body = `<p>${t("journal_off")}</p><button class="btn primary" data-a="flagOn" data-v="optJournal">${t("journal_on")}</button>`;
+  if (S.care === "write" && S.optJournal) body = `<p>${t("care_journal_note")}</p><label class="label" for="journal-draft">${t(happy ? "care_good_prompt" : "care_prompt")}</label><textarea class="field" id="journal-draft" rows="5" data-model="journalDraft">${esc(S.journalDraft)}</textarea><button class="btn primary block" data-a="saveJournal" ${S.journalDraft.trim() ? "" : "disabled"}>${t("care_save")}</button>${S.journalEntries.length ? `<h3>${t("care_entries")}</h3>${S.journalEntries.map(entry => `<article class="care-entry"><small>${activityDate(entry.date)}</small><p>${esc(entry.text)}</p></article>`).join("")}` : ""}`;
   if (["sit", "celebrate"].includes(S.care)) body = `<p>${t(S.care === "sit" ? "care_sit_note" : "care_savor_note", {pet:esc(S.petName)})}</p>`;
   if (S.care === "share") {
     const friends = MEMBERS.filter(m => S.friendships[m.id] === "friend");
@@ -798,9 +918,10 @@ function companionScreen() {
       ${S.breathing ? "" : talkBox("companion")}
       ${checkin}
       ${S.checkedIn ? carePanel() : ""}
+      ${scenePicker()}
       ${activityLink()}
       <h2 class="section-h">${t("badges")}</h2>
-      <div class="badges">${BADGES.map(b => { const on = (b.id === "first_checkin" && S.history.length > 0) || (b.id === "first_post" && S.posted);
+      <div class="badges">${BADGES.map(b => { const on = (b.id === "first_checkin" && S.history.length > 0) || (b.id === "first_post" && S.posted) || (b.id === "thirty" && S.history.length >= 30);
         return `<div class="badge ${on ? "earned" : ""}"><div class="b">${icon(b.icon)}</div>${L(b)}</div>`; }).join("")}</div>
       <h2 class="section-h">${t("shop")}<button class="more" data-a="go" data-v="shop">${t("see_all")}${icon("chev")}</button></h2>
       <div class="grid2">${SHOP.slice(0, 2).map(shopItem).join("")}</div>
@@ -831,15 +952,18 @@ function circlesScreen() {
 }
 function circleScreen() {
   const c = CIRCLES.find(x => x.id === S.circle) || CIRCLES[0];
-  const posts = S.posts.filter(p => p.focus === c.focus);
-  return `${hdrSub(esc(c.name))}<div class="scroll"><p class="pad muted" style="margin:0;display:flex;gap:8px">${icon("lock")}<span>${t("members_n", { n: c.members })} · ${c.lang}</span></p>
-    ${S.joined.includes(c.id) ? (posts.length ? posts.map(p => postPanel(p, { preview: true })).join("") : `<div class="notice"><p>${t("no_posts")}</p></div>`)
+  const posts = S.posts.filter(p => p.circle === c.id && !p.hiddenForMe);
+  const joined = S.joined.includes(c.id);
+  return `${hdrSub(esc(c.name))}<div class="scroll"><p class="pad muted" style="margin:0;display:flex;gap:8px">${icon("lock")}<span>${t("members_n", { n: c.members })} · ${c.lang} · ${focusName(c.focus)}</span></p>
+    ${joined ? `<div class="pad" style="padding-top:0"><button class="btn primary block" data-a="composeIn" data-v="${c.id}">${icon("ask")}${t("post_in_circle")}</button></div>
+        ${posts.length ? posts.map(p => postPanel(p, { preview: true })).join("") : `<div class="notice"><p>${t("circle_first")}</p></div>`}`
       : `<div class="notice"><h3>${t("join_to_see")}</h3><p>${t("members_only")}</p><button class="btn primary" data-a="join" data-v="${c.id}">${t("join")}</button></div>`}</div>`;
 }
 /* ---------- practice filtering ---------- */
 function filteredPractices() {
   const query = S.practiceQuery.trim().toLocaleLowerCase();
   return RESOURCES.filter(r => (!S.savedOnly || S.savedPractices.includes(r.id))
+    && (!S.practiceKind || r.kind === S.practiceKind)
     && (!S.practiceTopic || r.f === S.practiceTopic)
     && (!S.practiceLanguage || r.languages.includes(S.practiceLanguage))
     && (!S.practiceDuration || (S.practiceDuration === "short" ? r.min <= 3 : S.practiceDuration === "medium" ? r.min >= 4 && r.min <= 5 : r.min >= 6))
@@ -849,26 +973,31 @@ function filteredPractices() {
 /* ---------- practice presentation ---------- */
 function practiceLang() { return { en: "en", ht: "zh-Hant", hs: "zh-Hans" }[S.practiceLanguage || S.lang]; }
 function practiceText(text) { return text[S.practiceLanguage || S.lang] || text.en; }
+const supportKind = id => SUPPORT_KINDS.find(k => k.id === id) || SUPPORT_KINDS[0];
+function practiceMeta(r) {
+  const k = supportKind(r.kind);
+  return `<span class="practice-meta"><span class="kind-chip kind-${k.id}">${L(k)}</span>${focusName(r.f)} · ${t("library_minutes", { n: r.min })}</span>${k.selfCare ? `<span class="selfcare-note">${t("library_selfcare")}</span>` : ""}`;
+}
 function practiceSave(r) {
   const saved = S.savedPractices.includes(r.id);
   return `<button class="btn quiet" data-a="savePractice" data-v="${r.id}" aria-pressed="${saved}" aria-label="${t(saved ? "library_unsave" : "library_save")}: ${esc(practiceText(r.t))}">${icon(saved ? "check" : "heart")}${t(saved ? "library_saved" : "library_save")}</button>`;
 }
 function practiceResults() {
   const rows = filteredPractices();
-  return `<p class="muted" role="status">${t("library_count", { n: rows.length })}</p>${rows.length ? rows.map(r => `<article class="panel practice-card"><span class="practice-meta">${focusName(r.f)} · ${t("library_minutes", { n: r.min })}</span><h2 lang="${practiceLang()}">${esc(practiceText(r.t))}</h2><p lang="${practiceLang()}">${esc(practiceText(r.steps[0]))}</p><div class="practice-actions"><button class="btn primary" data-a="openPractice" data-v="${r.id}">${t("library_open")}${icon("chev")}</button>${practiceSave(r)}</div></article>`).join("") : `<div class="notice"><p>${t(S.savedOnly && !S.savedPractices.length ? "library_no_saved" : "library_empty")}</p><button class="btn quiet" data-a="clearPracticeFilters">${t("library_clear")}</button>${S.savedOnly ? `<button class="btn primary" data-a="practiceTab" data-v="all">${t("library_all")}</button>` : ""}</div>`}`;
+  return `<p class="muted" role="status">${t("library_count", { n: rows.length })}</p>${rows.length ? rows.map(r => `<article class="panel practice-card">${practiceMeta(r)}<h2 lang="${practiceLang()}">${esc(practiceText(r.t))}</h2><p lang="${practiceLang()}">${esc(practiceText(r.steps[0]))}</p><div class="practice-actions"><button class="btn primary" data-a="openPractice" data-v="${r.id}">${t("library_open")}${icon("chev")}</button>${practiceSave(r)}</div></article>`).join("") : `<div class="notice"><p>${t(S.savedOnly && !S.savedPractices.length ? "library_no_saved" : "library_empty")}</p><button class="btn quiet" data-a="clearPracticeFilters">${t("library_clear")}</button>${S.savedOnly ? `<button class="btn primary" data-a="practiceTab" data-v="all">${t("library_all")}</button>` : ""}</div>`}`;
 }
 function learnScreen() {
   const select = (key, label, options) => `<label class="practice-filter">${t(label)}<select class="field" data-library-filter="${key}">${options.map(([value, text]) => `<option value="${value}" ${S[key] === value ? "selected" : ""}>${text}</option>`).join("")}</select></label>`;
   return `${hdrSub(t("practice_library"))}<div class="scroll"><div class="pad practice-controls"><h1>${t("library_intro")}</h1><p class="muted">${t("library_note")}</p>
     <div class="chips">${["all", "saved"].map(tab => `<button class="chip ${S.savedOnly === (tab === "saved") ? "on" : ""}" aria-pressed="${S.savedOnly === (tab === "saved")}" data-a="practiceTab" data-v="${tab}">${t(tab === "all" ? "library_all" : "library_saved")}${tab === "saved" ? ` (${S.savedPractices.length})` : ""}</button>`).join("")}</div>
     <label class="label" for="practice-search">${t("library_search")}</label><input id="practice-search" type="search" class="field" data-model="practiceQuery" value="${esc(S.practiceQuery)}" placeholder="${t("library_search")}">
-    <div class="practice-filters">${select("practiceTopic", "library_topic", [["",t("library_any")], ...FOCUS.map(f => [f.id,L(f)])])}${select("practiceDuration", "library_duration", [["",t("library_any")], ...["short","medium","long"].map(v => [v,t("library_"+v)])])}${select("practiceLanguage", "library_language", [["",t("library_any")],["en","English"],["ht","繁體中文"],["hs","简体中文"]])}</div><button class="btn quiet" data-a="clearPracticeFilters">${t("library_clear")}</button>
+    <div class="practice-filters">${select("practiceKind", "library_kind", [["",t("library_any")], ...SUPPORT_KINDS.map(k => [k.id,L(k)])])}${select("practiceTopic", "library_topic", [["",t("library_any")], ...FOCUS.map(f => [f.id,L(f)])])}${select("practiceDuration", "library_duration", [["",t("library_any")], ...["short","medium","long"].map(v => [v,t("library_"+v)])])}${select("practiceLanguage", "library_language", [["",t("library_any")],["en","English"],["ht","繁體中文"],["hs","简体中文"]])}</div><button class="btn quiet" data-a="clearPracticeFilters">${t("library_clear")}</button>
     <div id="practice-results">${practiceResults()}</div></div></div>`;
 }
 function practiceScreen() {
   const r = RESOURCES.find(r => r.id === S.practice);
   if (!r) return learnScreen();
-  return `${hdrSub(t("practice_library"))}<div class="scroll"><article class="pad practice-detail"><span class="practice-meta">${focusName(r.f)} · ${t("library_minutes", { n: r.min })}</span><h1 lang="${practiceLang()}">${esc(practiceText(r.t))}</h1><p class="muted">${t("library_gentle")}</p><ol lang="${practiceLang()}">${r.steps.map(step => `<li>${esc(practiceText(step))}</li>`).join("")}</ol>${practiceSave(r)}<p class="muted">${t("library_note")}</p><button class="btn primary block" data-a="back">${t("library_finish")}</button></article></div>`;
+  return `${hdrSub(t("practice_library"))}<div class="scroll"><article class="pad practice-detail">${practiceMeta(r)}<h1 lang="${practiceLang()}">${esc(practiceText(r.t))}</h1><p class="muted">${t("library_gentle")}</p><ol lang="${practiceLang()}">${r.steps.map(step => `<li>${esc(practiceText(step))}</li>`).join("")}</ol>${practiceSave(r)}<p class="muted">${t("library_note")}</p><button class="btn primary block" data-a="practiceDone">${t("library_finish")}</button></article></div>`;
 }
 /* ---------- friendship transitions ---------- */
 function changeFriendship(id, action) {
@@ -950,13 +1079,29 @@ function meScreen() {
       <input class="field" id="meName" data-model="realName" value="${esc(S.realName)}" placeholder="${t("name_ph")}" autocomplete="name" maxlength="40">
       <span class="label" style="margin-top:16px">${t("show_as")}</span>${nameChoice()}
     </div>
-    <div class="panel" style="padding:2px 14px">${sw("optMatch", t("counselor_matching"))}${sw("shareMood", t("share_mood"))}${sw("showCircles", t("show_circles"))}${sw("showFriends", t("show_friends"))}${sw("optJournal", t("optin_journal"))}</div>
+    <div class="panel" style="padding:2px 14px">${sw("optMatch", t("counselor_matching"))}${sw("shareMood", t("share_mood"))}${sw("optJournal", t("optin_journal"))}</div>
     <div class="pad"><button class="btn quiet block" data-a="go" data-v="counselor">Preview counselor workspace</button></div>
-    <div class="pad"><button class="btn quiet block" data-a="replay">${t("replay")}</button></div></div>`;
+    <div class="pad"><button class="btn quiet block" data-a="replay">${t("replay")}</button></div>
+    ${installCard()}
+    <div class="pad"><p class="muted" style="display:flex;gap:8px">${icon("lock")}<span>${t("saved_here")}</span></p><button class="btn ghost block" data-a="erase">${t("erase")}</button></div></div>`;
 }
 /* Help is stepped to the level of need. The Help pill asks first; Pebble's "talk to someone"
    opens "reach"; risky words, safety answers and held posts open the crisis lines.
    Every level keeps a one-tap emergency line at the bottom. */
+function menuTarget() {
+  const [pid, ri] = String(S.menu || "").split(":");
+  const post = S.posts.find(x => x.id === pid);
+  return { post, index: ri === undefined ? null : +ri, item: !post ? null : ri === undefined ? post : post.replies[+ri] };
+}
+function menuSheet() {
+  const { item } = menuTarget();
+  if (!item) return "";
+  const row = (a, ic, label, sub) => `<button class="li" data-a="${a}">${icon(ic)}<span class="t"><b>${label}</b><small>${sub}</small></span></button>`;
+  return `<div class="sheet-bg" data-a="closeMenu"><div class="sheet" role="dialog" aria-modal="true" aria-label="${t("more_actions")}" data-stop>
+    <div class="grab"></div><h2 tabindex="-1">${t("more_actions")}</h2><div class="list">${item.mine ? row("menuDelete", "trash", t("delete_mine"), t("delete_sub"))
+      : row("menuReport", "flag", t("report"), t("report_sub")) + row("menuHide", "hide", t("hide_post"), t("hide_sub"))}</div>
+    <button class="btn quiet block" style="margin-top:6px" data-a="closeMenu">${t("close")}</button></div></div>`;
+}
 function emergencyRow() {
   return S.state === "INTL" ? `<p class="help-danger">${icon("phone")}<span>${t("help_danger_intl")}</span></p>`
     : `<a class="help-danger" href="tel:911">${icon("phone")}<span>${t("help_danger_now")}</span></a>`;
@@ -987,12 +1132,11 @@ function crisisSheet() {
     inner = `<p>${body}</p>${findHelpList()}${note}${ctx === "crisis" ? other : ""}`;
   }
   return `<div class="sheet-bg" data-a="closeCrisis"><div class="sheet help-${ctx}" role="dialog" aria-modal="true" aria-label="${title}" data-stop>
-    <div class="grab"></div><h2>${title}</h2>${inner}
+    <div class="grab"></div><h2 tabindex="-1">${title}</h2>${inner}
     <button class="btn quiet block" style="margin-top:6px" data-a="closeCrisis">${t("close")}</button></div></div>`;
 }
 
 const APP_TOUR = [
-  ["home", "app_tour_music", "app_tour_music_body", ".music-controls"],
   ["circles", "app_tour_circles", "app_tour_circles_body", ".scroll .list .li"],
   ["ask", "app_tour_ask", "app_tour_ask_body", ".ask-destination[data-v=compose]"],
   ["friends", "app_tour_friends", "app_tour_friends_body", ".friends-panel:last-of-type"],
@@ -1002,6 +1146,7 @@ const APP_TOUR = [
   ["activity", "app_tour_activity", "app_tour_activity_body", ".streak-pair"],
   ["shop", "app_tour_shop", "app_tour_shop_body", ".grid2 .item"],
   ["me", "app_tour_profile", "app_tour_profile_body", ".tour-profile"],
+  ["home", "app_tour_music", "app_tour_music_body", ".music-controls"],
 ];
 function appTourPanel() {
   const index = S.appTour, step = APP_TOUR[index];
@@ -1044,13 +1189,15 @@ function view() {
   const map = { daily: dailyScreen, dailyDone, phqIntro, phq: phqScreen, phqResult, counselor: counselorWorkspace, ask: askScreen, friendDm, friends: friendsScreen, activity: activityScreen, home, compose, thread, guide, dm, companion: companionScreen, shop: shopScreen, circles: circlesScreen, circle: circleScreen, learn: learnScreen, practice: practiceScreen, me: meScreen };
   return (map[S.screen] || home)();
 }
-let lastScreen = null;
+let lastScreen = null, lastSheet = null;
 function render(nav = false) {
   if (heroCleanup) { heroCleanup(); heroCleanup = null; }
   if (S.screen !== "companion" || !S.checkedIn) stopCareAudio();
   if (S.activityDay && S.activityDay !== dayKey()) {
     S.checkedIn = false; S.mood = null; S.note = ""; S.tags = []; S.earnedToday = 0; S.activityDay = dayKey();
     S.daily = newDaily(); S.dMedNote = ""; S.dLine = "";
+    // A safety answer shapes the rest of that day only.
+    S.checkinSafety = false; S.phqSafety = false; S.moodEdit = false;
     if (["daily", "dailyDone"].includes(S.screen)) S.screen = "companion";
   }
   const sc = document.querySelector("#app .scroll");
@@ -1061,9 +1208,10 @@ function render(nav = false) {
   document.documentElement.lang = S.lang === "en" ? "en" : zhTag();
   syncWorld();
   let html = musicControls() + view();
-  if (["daily", "dailyDone", "phqIntro", "phq", "phqResult"].includes(S.screen)) html = testBar() + html;
+  if (DEMO && ["daily", "dailyDone", "phqIntro", "phq", "phqResult"].includes(S.screen)) html = testBar() + html;
   if (!landing() && S.screen !== "onboard" && !NO_TAB_BAR.includes(S.screen)) html += tabs(sectionTab());
   if (S.appTour !== null) html += appTourPanel();
+  if (S.menu) html += menuSheet();
   if (S.crisis) html += crisisSheet();
   if (S.toast) html += `<div class="toast" role="status">${icon(S.toast.ic)}${esc(S.toast.msg)}</div>`;
   $("#app").innerHTML = html;
@@ -1071,6 +1219,8 @@ function render(nav = false) {
   const welcome = S.screen === "onboard" && S.step === 0;
   sb.className = "statusbar" + (welcome ? " sky" + (skyDark() ? " dark" : "") : "") + (S.screen === "onboard" && S.step > 0 ? " plain" : "");
   mountStage();
+  const sceneRow = document.querySelector(".scene-row"), sceneOn = sceneRow && sceneRow.querySelector(".on");
+  if (sceneOn) sceneRow.scrollLeft = sceneOn.offsetLeft - (sceneRow.clientWidth - sceneOn.offsetWidth) / 2;
   mountTour();
   mountHomeHero();
   const nsc = document.querySelector("#app .scroll");
@@ -1078,8 +1228,13 @@ function render(nav = false) {
   highlightAppTour();
   if (active) { const el = document.querySelector(`[data-model="${active}"]`); if (el) { el.focus(); const v = el.value; el.value = ""; el.value = v; } }
   if (nav || (tourFocus && S.appTour !== null)) document.querySelector("#app [data-autofocus]")?.focus({ preventScroll: true });
+  // A sheet that has just opened takes the focus, so keyboard and screen-reader users land in it.
+  const sheet = S.crisis || S.menu || null;
+  if (sheet && sheet !== lastSheet) document.querySelector("#app .sheet h2")?.focus({ preventScroll: true });
+  lastSheet = sheet;
   lastScreen = S.screen; S.enter = null;
   runTypewriter();
+  saveState();
 
   if (S.toast) { const id = S.toast.id; setTimeout(() => { if (S.toast && S.toast.id === id) { S.toast = null; $(".toast")?.remove(); } }, 2800); }
   renderNotes();
@@ -1122,6 +1277,37 @@ const actions = {
   appTourMove(v) { const next = S.appTour + Number(v); if (next >= APP_TOUR.length) { actions.appTourExit(); return; } S.appTour = next; S.screen = APP_TOUR[next][0]; S.stack = []; render(true); },
   ...CHECKIN_ACTIONS,
   music() { toggleBackgroundMusic(); },
+  scene(v) { if (!SCENES.some(s => s.id === v)) return; S.scene = v; render(); document.querySelector("#compScroll")?.scrollTo({ top: 0, behavior: REDUCED_UI.matches ? "auto" : "smooth" }); },
+  postMenu(v) { S.menu = v; render(); },
+  closeMenu() { S.menu = null; render(); },
+  menuDelete() {
+    const { post, index, item } = menuTarget();
+    S.menu = null;
+    if (!item || !item.mine) { render(); return; }
+    if (index === null) { S.posts = S.posts.filter(p => p !== post); if (S.screen === "thread" && S.thread === post.id) { toast(t("deleted"), "trash"); back(); return; } }
+    else post.replies.splice(index, 1);
+    toast(t("deleted"), "trash"); render();
+  },
+  menuReport() { actions.menuHide(true); },
+  menuHide(reported) {
+    const { post, index, item } = menuTarget();
+    S.menu = null;
+    if (!item || item.mine) { render(); return; }
+    item.hiddenForMe = true; if (reported === true) item.reported = true;
+    toast(t(reported === true ? "report_thanks" : "hidden_done"), reported === true ? "shield" : "hide");
+    if (index === null && S.screen === "thread" && S.thread === post.id) { back(); return; }
+    render();
+  },
+  composeIn(v) { S.draftCircle = v; go("compose"); },
+  draftCircle(v) { S.draftCircle = v || null; render(); },
+  guideZh() { S.guideZh = !wantsZh(); render(); },
+  practiceDone() { const got = earnOnce("practice", 3); if (got) toast(t("seeds_earned", { n: got })); back(); },
+  install() { if (!installEvent) return; installEvent.prompt(); installEvent.userChoice.finally(() => { installEvent = null; render(); }); },
+  erase() {
+    if (!confirm(t("erase_confirm"))) return;
+    try { localStorage.removeItem(SAVE_KEY); } catch (e) { /* nothing saved */ }
+    location.reload();
+  },
   cwTab(tab) { CW.tab = tab; CW.selected = null; render(true); },
   cwOpen(id) { CW.selected = id; CW.tab = CW_QUESTIONS.some(x => x.id === id) ? 'community' : 'inbox'; render(true); },
   cwClose() { CW.selected = null; render(true); },
@@ -1141,7 +1327,7 @@ const actions = {
   careShareMode(mode) { S.careShareMode = mode; render(); },
   carePlay(kind) { playCareAudio(kind); },
   careStop() { stopCareAudio(); render(); },
-  saveJournal() { const text = S.journalDraft.trim(); if (!text) return; S.journalEntries.unshift({date:dayKey(), text}); S.journalDraft = ""; toast(t("care_saved"), "lock"); render(); },
+  saveJournal() { const text = S.journalDraft.trim(); if (!text) return; S.journalEntries.unshift({date:dayKey(), text}); S.journalDraft = ""; toast(t("care_saved"), "lock"); if (isRisky(text)) S.crisis = "crisis"; render(); },
   careCommunity() { if (!S.draft.trim()) S.draft = t("care_share_draft"); go("compose"); },
   careFriend(id) { if (S.friendships[id] !== "friend") return; if (!(S.friendDrafts[id] || "").trim()) S.friendDrafts[id] = t(S.careShareMode === "thank" ? "care_thank_draft" : "care_share_draft"); go("friendDm", {friendRecipient:id}); },
   friendChat(id) { if (S.friendships[id] === "friend") go("friendDm", { friendRecipient: id }); },
@@ -1151,7 +1337,7 @@ const actions = {
   practiceTab(v) { S.savedOnly = v === "saved"; render(); },
   openPractice(v) { go("practice", { practice: v }); },
   savePractice(v) { S.savedPractices = S.savedPractices.includes(v) ? S.savedPractices.filter(id => id !== v) : [...S.savedPractices, v]; render(); },
-  clearPracticeFilters() { Object.assign(S, { practiceQuery: "", practiceTopic: "", practiceDuration: "", practiceLanguage: "" }); render(); },
+  clearPracticeFilters() { Object.assign(S, { practiceQuery: "", practiceKind: "", practiceTopic: "", practiceDuration: "", practiceLanguage: "" }); render(); },
   streakGoal(v) { S.streakGoal = Number(v); render(); },
   activityCheck() { actions.dailyRestart(); },
   sampleWeek() {
@@ -1170,13 +1356,13 @@ const actions = {
   next() {
     if (S.step === 5 && (!S.companionChosen || !S.petName.trim())) return;
     if (S.step < 5) { S.step++; if (S.step === 5 && world) world.anim.pop = world.time; }
-    else { S.screen = "circles"; S.stack = []; S.member = true; S.draftFocus = S.mainFocus || "individual"; toast(t("welcome_toast", { n: 20 })); }
+    else { if (!S.joined.length) S.joined = suggestedCircles(); S.screen = "circles"; S.stack = []; S.member = true; S.draftFocus = S.mainFocus || "individual"; toast(t("welcome_toast", { n: 20 })); }
     render(true);
   },
   // Setup opened from Home's Get started returns to Home from step 1, not to the older welcome tour.
   prev() { if (S.step <= 1 && S.stack.length) { back(); return; } S.step = Math.max(0, S.step - 1); render(true); },
-  getStarted() { Object.assign(S, { step: 1, age: false, terms: false, optMatch: false, optJournal: false, realName: "", nameShow: "anon", focuses: [], mainFocus: null, state: null, species: "otter", petName: "", companionChosen: false, match: null }); go("onboard"); },
-  signin() { Object.assign(S, { member: true, friendships: { kevin: "friend", ...S.friendships }, realName: "Lily Zhang", nameShow: "initials", companionChosen: true, petName: "Pebble", age: true, terms: true, optMatch: true, focuses: ["parenting"], mainFocus: "parenting", state: "TX", screen: "circles", stack: [] }); toast(t("sign_in_na"), "me"); render(true); },
+  getStarted() { Object.assign(S, { step: 1, age: false, terms: false, optMatch: false, optJournal: false, realName: "", nameShow: "anon", focuses: [], mainFocus: null, state: null, species: "otter", petName: "", companionChosen: false, match: null, joined: [] }); go("onboard"); },
+  signin() { Object.assign(S, { member: true, joined: S.joined.length ? S.joined : ["c1"], friendships: { kevin: "friend", ...S.friendships }, realName: "Lily Zhang", nameShow: "initials", companionChosen: true, petName: "Pebble", age: true, terms: true, optMatch: true, focuses: ["parenting"], mainFocus: "parenting", state: "TX", screen: "circles", stack: [] }); toast(t("sign_in_na"), "me"); render(true); },
   lang(v) { S.lang = v; render(); },
   flag(v, el) { S[v] = el.checked; render(); },
   flagOn(v) { S[v] = true; render(); },
@@ -1186,7 +1372,7 @@ const actions = {
     S.draftFocus = S.mainFocus || "individual"; render();
   },
   mainFocus(v) { S.mainFocus = v; S.draftFocus = v; render(); },
-  state(v) { S.state = v; if (S.match && !counselor(S.match).states.includes(v)) S.match = null; render(); },
+  state(v) { S.state = v; if (S.match && !counselor(S.match).states.includes(v)) { S.match = null; toast(t("guide_unmatched"), "pin"); } render(); },
   species(v) { if (S.companionChosen && S.species === v) return; S.species = v; S.companionChosen = true; render(); if (world) world.emote("wave"); if (S.screen !== "onboard") quip("species", { species: L(species(v)) }); },
   tab(v) { S.stack = []; S.screen = v; S.breathing = false; render(true); },
   go(v) { go(v); },
@@ -1195,10 +1381,10 @@ const actions = {
   closeCrisis() { S.crisis = null; render(); },
   helpLevel(v) { S.crisis = v; render(); },
   helpGo(v) { S.crisis = null; if (v === "breathe") { startBreathe(); return; } go(v === "guide" ? (S.match ? "dm" : "guide") : v); },
-  thread(v) { S.seen[v] = true; go("thread", { thread: v }); },
+  thread(v) { S.seen[v] = true; S.replyPersona = "anon"; go("thread", { thread: v }); },
   circle(v) { go("circle", { circle: v }); },
   translate(v) { S.translated[v] = !S.translated[v]; render(); },
-  helpful(v) { S.helpful[v] = !S.helpful[v]; render(); },
+  helpful(v) { const p = S.posts.find(x => x.id === v); if (p && p.mine) return; S.helpful[v] = !S.helpful[v]; render(); },
   join(v) { S.joined = S.joined.includes(v) ? S.joined.filter(x => x !== v) : [...S.joined, v]; render(); },
   persona(v) { S.persona = v; render(); },
   nameShow(v) { if (v !== "anon" && !S.realName.trim()) return; S.nameShow = v; render(); },
@@ -1208,19 +1394,22 @@ const actions = {
     const text = S.draft.trim(); if (text.length <= 3) return;
     const risky = isRisky(text);
     const me = displayName();
-    const p = { id: "u" + Date.now(), anon: S.persona === "anon" || !me, author: me || "Anonymous", focus: S.draftFocus, ago: null, orig: S.lang === "en" ? "en" : "zh", text, answer: null, replies: [], helpful: 0, mine: true, held: risky };
-    S.posts.unshift(p); S.draft = ""; S.posted = true; S.stack = []; S.screen = "home"; S.enter = p.id;
+    const p = { id: "u" + Date.now(), anon: S.persona === "anon" || !me, author: me || "Anonymous", focus: S.draftFocus, ago: null, orig: CJK.test(text) ? "zh" : "en", text, answer: null, replies: [], helpful: 0, mine: true, held: risky };
+    const circle = CIRCLES.find(c => c.id === S.draftCircle && S.joined.includes(c.id));
+    if (circle) Object.assign(p, { circle: circle.id, focus: circle.focus });
+    // The next post starts anonymous again, so a named post is always a fresh choice.
+    S.posts.unshift(p); S.draft = ""; S.persona = "anon"; S.draftCircle = null; S.posted = true; S.stack = []; S.screen = "home"; S.enter = p.id;
     if (risky) { S.crisis = "held"; talkTo("after_hold", { silent: true }); }
-    else { const got = earn(5); toast(got ? `${t("posted")} · ${t("seeds_earned", { n: got })}` : t("posted")); talkTo("posted", { silent: true }); }
+    else { const got = earnOnce("share", 5); toast(got ? `${t("posted")} · ${t("seeds_earned", { n: got })}` : t("posted")); talkTo("posted", { silent: true }); }
     render(true);
   },
   reply() {
     const text = (S.replyDraft || "").trim(); if (!text) return;
     const p = S.posts.find(x => x.id === S.thread); const risky = isRisky(text);
     const me = displayName();
-    p.replies.push({ author: S.replyPersona === "anon" || !me ? "Anonymous" : me, orig: S.lang === "en" ? "en" : "zh", text, mine: true, held: risky });
+    p.replies.push({ author: S.replyPersona === "anon" || !me ? "Anonymous" : me, orig: CJK.test(text) ? "zh" : "en", text, mine: true, held: risky });
     S.replyDraft = "";
-    if (risky) S.crisis = "held"; else { const got = earn(2); if (got) toast(t("seeds_earned", { n: got })); }
+    if (risky) S.crisis = "held"; else { const got = earnOnce("share", 5); if (got) toast(t("seeds_earned", { n: got })); }
     render();
   },
   match(v) { S.match = v; S.dm = [{ me: false, key: "dm_hello" }]; go("dm"); },
@@ -1244,13 +1433,13 @@ const actions = {
   buy(v) {
     const it = SHOP.find(x => x.id === v); if (S.seeds < it.p) return;
     S.seeds -= it.p; S.owned.push(v);
-    if (it.kind === "species") S.species = "fox"; else S.wear = [...S.wear, v];
+    if (it.kind === "species") { S.baseSpecies = S.species; S.species = "fox"; } else S.wear = [...S.wear, v];
     toast(t("got_item", { item: L(it), n: it.p })); render();
     if (world) world.anim.pop = world.time;
   },
   wear(v) {
     const it = SHOP.find(x => x.id === v);
-    if (it.kind === "species") S.species = S.species === "fox" ? "otter" : "fox";
+    if (it.kind === "species") { if (S.species === "fox") S.species = S.baseSpecies || "otter"; else { S.baseSpecies = S.species; S.species = "fox"; } }
     else S.wear = S.wear.includes(v) ? S.wear.filter(x => x !== v) : [...S.wear, v];
     render(); if (world) world.anim.pop = world.time;
   },
@@ -1317,10 +1506,10 @@ document.addEventListener("input", e => {
 });
 document.addEventListener("submit", e => {
   if (e.target.id === "cw-profile") { e.preventDefault(); const data = new FormData(e.target); Object.assign(CW, {bio:String(data.get('bio')).trim(), response:data.get('response'), accepting:data.has('accepting'), away:data.has('away')}); toast('Demo settings saved for this session', 'check'); render(); return; }
- if (e.target.id === "friend-message-form") { e.preventDefault(); sendFriendMessage(); } });
+ if (e.target.id === "friend-message-form") { e.preventDefault(); const risky = isRisky(S.friendDrafts[S.friendRecipient] || ""); sendFriendMessage(); if (risky) { S.crisis = "crisis"; render(); } } });
 document.addEventListener("keydown", e => {
   if (e.key === "Enter" && e.target.dataset && ["dmDraft", "replyDraft"].includes(e.target.dataset.model)) { e.preventDefault(); actions[e.target.dataset.model === "dmDraft" ? "sendDm" : "reply"](); return; }
-  if (e.key === "Escape" && S.crisis) { S.crisis = null; render(); }
+  if (e.key === "Escape" && (S.crisis || S.menu)) { S.crisis = null; S.menu = null; render(); }
 });
 
 /* Logo: the clinic mark becomes a mask so it can take the palette's colours. */
@@ -1337,8 +1526,13 @@ document.addEventListener("keydown", e => {
   img.src = window.BRC_LOGO;
 })();
 
+if (loadState()) {
+  if (S.member) S.screen = "home";
+  // A day or more away: the Companion naps and wakes glad to see the Member.
+  if (S.member && S.activityDay && S.activityDay < shiftDay(dayKey(), -1)) S.away = true;
+}
 /* Deep links for reviewing screens: ?skip=1, ?screen=…, ?lang=ht, ?step=2, ?loc=INTL, ?checkedin=1, ?mood=sad, ?match=k1, ?sheet=held, ?thread=p1, ?draft=…, ?time=22 */
-if (params.get("skip") === "1" || params.get("screen")) Object.assign(S, { member: true, friendships: { kevin: "friend" }, realName: "Lily Zhang", nameShow: "initials", companionChosen: true, petName: "Pebble", screen: "home", age: true, terms: true, optMatch: true, focuses: ["parenting"], mainFocus: "parenting", state: "TX" });
+if (params.get("skip") === "1" || params.get("screen")) Object.assign(S, { member: true, joined: ["c1"], friendships: { kevin: "friend" }, realName: "Lily Zhang", nameShow: "initials", companionChosen: true, petName: "Pebble", screen: "home", age: true, terms: true, optMatch: true, focuses: ["parenting"], mainFocus: "parenting", state: "TX" });
 if (params.get("screen")) { S.screen = params.get("screen"); if (!["home", "circles", "companion", "me"].includes(S.screen)) S.stack = [{ screen: "home" }]; }
 if (params.get("lang")) S.lang = params.get("lang");
 if (params.get("step")) { S.step = +params.get("step"); if (S.step >= 2) Object.assign(S, { age: true, terms: true }); }
@@ -1357,10 +1551,10 @@ if (params.get("name") !== null) S.realName = params.get("name");
 if (params.get("show")) S.nameShow = displayName(params.get("show")) ? params.get("show") : "anon";
 if (params.get("talk")) S.talk.node = params.get("talk");
 render(true);
-startDefaultMusic();
 window.addEventListener("companion-ready", initWorld);
 initWorld();
 
 document.addEventListener("visibilitychange", () => { if (document.hidden && careAudio) { stopCareAudio(); render(); } });
 window.addEventListener("pagehide", stopCareAudio);
 window.addEventListener("resize", highlightAppTour);
+window.addEventListener("resize", mountStage);

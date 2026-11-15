@@ -378,7 +378,7 @@ export class CompanionWorld {
     this.canvas.tabIndex = 0;
     this.canvas.setAttribute('role', 'img');
     this.listeners = {};
-    this.state = { species: 'otter', mood: null, asleep: true, wear: [], timeOverride: null };
+    this.state = { species: 'otter', mood: null, asleep: true, wear: [], timeOverride: null, scene: null };
     this.mode = 'home';
     this.time = 0;
     this.thumbs = new Map();
@@ -519,7 +519,7 @@ export class CompanionWorld {
     this.lampGlass = mat('#fff4d6', { emissive: new THREE.Color('#ffc27a'), emissiveIntensity: 0, roughness: 0.25 });
     lamp.add(mesh(new RoundedBoxGeometry(0.16, 0.2, 0.16, 2, 0.03), this.lampGlass, 0, 0.95, 0));
     put(lamp, mesh(new THREE.ConeGeometry(0.15, 0.1, 4), mat('#5b4636'), 0, 1.1, 0)).rotation.y = Math.PI / 4;
-    island.add(lamp); this.lamp.position.set(lamp.position.x, GROUND + 0.95, lamp.position.z);
+    island.add(lamp); this.lamp.position.set(lamp.position.x, GROUND + 0.95, lamp.position.z); this.lampHome = this.lamp.position.clone();
 
     // flowers, tufts, stones (deterministic placement)
     const rnd = rng(42);
@@ -680,7 +680,8 @@ export class CompanionWorld {
     if (next.species && next.species !== prev.species) this.setSpecies(next.species);
     if (next.wear || next.mood !== undefined || next.asleep !== undefined) this.syncWear(false);
     if (prev.asleep && !this.state.asleep) { this.anim.wake = this.time; this.anim.yawn = this.time; }
-    if (next.timeOverride !== undefined) this.applySky(true);
+    if (next.timeOverride !== undefined || prev.scene !== this.state.scene) this.applySky(true);
+    if (prev.scene !== this.state.scene) this.frame(true);
     this.rig.root.visible = this.state.showPet !== false;
     this.contact.visible = this.state.showPet !== false;
     this.canvas.tabIndex = this.state.showPet === false ? -1 : 0;
@@ -716,7 +717,7 @@ export class CompanionWorld {
     const awake = !this.state.asleep || t - this.anim.wake < 7;
     const free = awake && !this.anim.breath && !this.sitting && !REDUCED.matches && !this.pointer.down
       && t > this.talkUntil + 1.5 && (!this.emo || this.emo.idle || t - this.emo.t0 > this.emo.dur) && t - this.lastInteract > 8
-      && ['home', 'companion', 'welcome'].includes(this.mode);
+      && ['home', 'companion', 'welcome'].includes(this.mode) && !this.photo();
     const SPOTS = [[-1.2, 0.45, 'sniff'], [0.6, 0.05, 'think'], [-0.45, -0.3, 'sniff'], [0.3, 0.5, 'wave']];
     if (this.sitting && w.state !== 'sit') w.state = 'go-sit';
     if (!this.sitting && (w.state === 'sit' || w.state === 'go-sit')) w.state = 'back';
@@ -755,6 +756,7 @@ export class CompanionWorld {
     if (this.canvas.parentElement !== el) { this.ro.disconnect(); el.appendChild(this.canvas); this.ro.observe(el); }
     const changed = this.mode !== mode; this.mode = mode;
     this.textBand = mode === 'home' || mode === 'companion';
+    if (changed) this.applySky(true);
     this.resize(changed ? false : true);
     this.updateLabel();
   }
@@ -766,7 +768,47 @@ export class CompanionWorld {
     this.frame(!keep && this.everFramed !== true);
     this.everFramed = true;
   }
+  /* ---------- photo scenes ----------
+     A scene puts the Companion inside a photo that the page draws behind the canvas. The diorama
+     is left out of the picture, the light comes from the scene, and the camera places the
+     Companion on a spot in the frame: anchor = { x, y } of its feet and h, the height in pixels
+     of something two units tall. Setup screens always keep the riverbank. */
+  photo() { return this.state.scene && ['home', 'companion', 'breathe'].includes(this.mode) ? this.state.scene : null; }
+  setAnchor(a) { this.anchor = a; this.frame(true); }
+  dioramaOnly() {
+    return [...this.island.children.filter(c => c !== this.rig.root && c !== this.contact), ...this.clouds, this.stars, this.moon, this.rain, this.fireflies, ...this.butterflies, ...this.leavesFly];
+  }
+  sceneLighting() {
+    const ph = this.photo();
+    if (!ph) { this.lamp.color.set('#ffc27a'); this.lamp.distance = 4.5; this.lamp.position.copy(this.lampHome); return; }
+    const L = ph.light, p = this.rig.root.position;
+    this.hemi.color.set(L.sky); this.hemi.groundColor.set(L.ground); this.hemi.intensity = L.hi;
+    this.sun.color.set(L.key); this.sun.intensity = L.ki;
+    this.sun.position.set(...L.dir).normalize().multiplyScalar(12).add(p); this.sun.target.position.copy(p);
+    if (L.warm) { this.lamp.color.set(L.warm); this.lamp.intensity = L.wi; this.lamp.distance = 6; this.lamp.position.set(p.x + L.wat[0], p.y + L.wat[1], p.z + L.wat[2]); }
+    else this.lamp.intensity = 0;
+    this.bridgeLight.intensity = 0;
+  }
+  draw() {
+    if (!this.photo()) { this.renderer.render(this.scene, this.camera); return; }
+    const hidden = this.dioramaOnly().filter(o => o.visible);
+    hidden.forEach(o => { o.visible = false; });
+    this.renderer.render(this.scene, this.camera);
+    hidden.forEach(o => { o.visible = true; });
+  }
   frame(snap) {
+    if (this.photo()) {
+      const el = this.canvas.parentElement, W = Math.max(1, el ? el.clientWidth : 1), H = Math.max(1, el ? el.clientHeight : 1);
+      const a = this.anchor || { x: W / 2, y: H * 0.8, h: H * 0.34 };
+      const vHalf = THREE.MathUtils.degToRad(this.camera.fov / 2), tall = 2, e = 0.1;
+      const dist = H * tall / (2 * a.h * Math.tan(vHalf));
+      this.camGoal.target.set(PET_POS.x, GROUND + tall * 0.45, PET_POS.z);
+      this.camGoal.pos.set(PET_POS.x, GROUND + tall * 0.45 + Math.sin(e) * dist, PET_POS.z + Math.cos(e) * dist);
+      this.camPos.copy(this.camGoal.pos); this.camTarget.copy(this.camGoal.target);
+      this.camera.setViewOffset(W, H, W / 2 - a.x, H / 2 - (a.y - a.h * 0.45), W, H);
+      return;
+    }
+    if (this.camera.view) this.camera.clearViewOffset();
     const p = this.rig ? this.rig.root.position : PET_POS;
     const h = this.rig ? this.rig.spec.height : 1.3;
     const cfg = {
@@ -800,6 +842,8 @@ export class CompanionWorld {
     this.sky = { top: css(top), bottom: css(bottom), dark: s.night > 0.45, night: s.night };
     this.canvas.style.background = `linear-gradient(180deg, ${this.sky.top} 0%, ${this.sky.bottom} 78%)`;
     this.skyNow = s;
+    const ph = this.photo();
+    if (ph) { this.canvas.style.background = 'transparent'; this.sky.dark = !!ph.dark; }
   }
   updateLighting(dt) {
     const s = this.skyNow; const w = this.weather;
@@ -1111,13 +1155,14 @@ export class CompanionWorld {
     this.waterU.uT.value = REDUCED.matches ? 0 : this.time;
     this.updateWeather(dt);
     this.updateLighting(dt);
+    this.sceneLighting();
     this.updateWalk(dt);
     this.updatePet(dt);
     this.updateParticles(dt);
     const k = 1 - Math.exp(-4.5 * dt);
     this.camPos.lerp(this.camGoal.pos, k); this.camTarget.lerp(this.camGoal.target, k);
     this.camera.position.copy(this.camPos); this.camera.lookAt(this.camTarget);
-    this.renderer.render(this.scene, this.camera);
+    this.draw();
   }
 
   /* ---------- studio thumbnails ---------- */
@@ -1157,7 +1202,7 @@ export class CompanionWorld {
     const url = this.canvas.toDataURL('image/png');
     r.setPixelRatio(prevPR); r.setSize(prevSize.x, prevSize.y, false); r.shadowMap.enabled = prevShadow;
     sc.remove(holder);
-    if (this.canvas.isConnected) r.render(this.scene, this.camera);
+    if (this.canvas.isConnected) this.draw();
     this.thumbs.set(key, url);
     return url;
   }
