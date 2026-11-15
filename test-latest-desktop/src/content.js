@@ -140,6 +140,9 @@ const I18N = {
   library_note: {"en": "Sample practices for this prototype · not counselor-reviewed. Saved items clear on refresh.", "ht": "原型示範練習，尚未經輔導師審閱。重新整理後會清除收藏。", "hs": "原型示范练习，尚未经咨询师审阅。刷新后会清除收藏。"},
   library_search: {"en": "Search practices", "ht": "搜尋練習", "hs": "搜索练习"},
   library_topic: {"en": "Topic", "ht": "主題", "hs": "主题"},
+  library_kind: {"en": "Kind of support", "ht": "支持方式", "hs": "支持方式"},
+  library_selfcare: {"en": "Self-care practice, not therapy", "ht": "自我照顧練習，不是治療", "hs": "自我照顾练习，不是治疗"},
+  guide_approaches: {"en": "Also uses", "ht": "也會運用", "hs": "也会运用"},
   library_duration: {"en": "Duration", "ht": "時長", "hs": "时长"},
   library_language: {"en": "Resource language", "ht": "資源語言", "hs": "资源语言"},
   library_all: {"en": "All practices", "ht": "所有練習", "hs": "所有练习"},
@@ -440,13 +443,13 @@ const STATES = [
 ];
 
 const COUNSELORS = [
-  { id: "k1", name: "Mei Lin, LPC", langs: "English · 普通话", zh: true, states: ["TX", "WA"], focus: ["parenting", "individual", "family"], full: false, hue: "#3FA3B4",
+  { id: "k1", approaches: ["art"], name: "Mei Lin, LPC", langs: "English · 普通话", zh: true, states: ["TX", "WA"], focus: ["parenting", "individual", "family"], full: false, hue: "#3FA3B4",
     bio: { en: "Parents of kids with ADHD, anxiety, bicultural families.", ht: "ADHD 孩子的家長、焦慮、雙文化家庭。", hs: "ADHD 孩子的家长、焦虑、双文化家庭。" } },
-  { id: "k2", name: "Daniel Ross, LMHC", langs: "English", zh: false, states: ["TX", "VA"], focus: ["couples", "premarital", "career"], full: false, hue: "#E07A4E",
+  { id: "k2", approaches: [], name: "Daniel Ross, LMHC", langs: "English", zh: false, states: ["TX", "VA"], focus: ["couples", "premarital", "career"], full: false, hue: "#E07A4E",
     bio: { en: "Couples communication, premarital prep, career change.", ht: "伴侶溝通、婚前準備、職涯轉換。", hs: "伴侣沟通、婚前准备、职业转换。" } },
-  { id: "k3", name: "Grace Chen, LCSW", langs: "普通话 · English", zh: true, states: ["TX"], focus: ["couples", "family", "individual"], full: false, hue: "#6D8F3E",
+  { id: "k3", approaches: ["mindfulness"], name: "Grace Chen, LCSW", langs: "普通话 · English", zh: true, states: ["TX"], focus: ["couples", "family", "individual"], full: false, hue: "#6D8F3E",
     bio: { en: "Marriage, in-law stress, immigrant adjustment.", ht: "婚姻、姻親壓力、移民適應。", hs: "婚姻、姻亲压力、移民适应。" } },
-  { id: "k4", name: "Sam Patel, LPC-A", langs: "English", zh: false, states: ["TX", "AR"], focus: ["career", "individual"], full: true, hue: "#8C6BC2",
+  { id: "k4", approaches: ["movement"], name: "Sam Patel, LPC-A", langs: "English", zh: false, states: ["TX", "AR"], focus: ["career", "individual"], full: true, hue: "#8C6BC2",
     bio: { en: "Work stress, burnout, young adults.", ht: "工作壓力、倦怠、年輕成人。", hs: "工作压力、倦怠、年轻成人。" } },
 ];
 
@@ -681,6 +684,50 @@ const RESOURCES = [
     ]
   }
 ];
+/* Kinds of support. Art, music and movement entries are self-care practices, not art,
+   music or exercise therapy, which credentialed therapists deliver. Sample copy, not counselor-reviewed. */
+const SUPPORT_KINDS = [
+  { id: "counseling", en: "Counseling skills", ht: "輔導技巧", hs: "辅导技巧" },
+  { id: "mindfulness", en: "Mindfulness", ht: "正念", hs: "正念" },
+  { id: "art", en: "Art & creativity", ht: "藝術與創作", hs: "艺术与创作", selfCare: true },
+  { id: "music", en: "Music & sound", ht: "音樂與聲音", hs: "音乐与声音", selfCare: true },
+  { id: "movement", en: "Movement & exercise", ht: "運動與身體", hs: "运动与身体", selfCare: true },
+];
+const KIND_OF = { notice: "mindfulness", gratitude: "mindfulness", work: "mindfulness", family: "counseling", listen: "counseling", future: "counseling" };
+RESOURCES.forEach(r => { r.kind = r.kind || KIND_OF[r.id] || "counseling"; });
+const step = (en, ht, hs) => ({ en, ht, hs });
+RESOURCES.push(
+  { id: "draw-feeling", kind: "art", f: "individual", min: 5, languages: ["en", "ht", "hs"], t: step("Draw how today feels", "畫出今天的感覺", "画出今天的感觉"), steps: [
+    step("Take any paper and a pen or crayons. No drawing skill needed.", "拿一張紙和筆或蠟筆，不需要任何繪畫技巧。", "拿一张纸和笔或蜡笔，不需要任何绘画技巧。"),
+    step("Choose colors and shapes that match how today feels.", "選擇符合今天感覺的顏色和形狀。", "选择符合今天感觉的颜色和形状。"),
+    step("Draw for a few minutes without judging it.", "隨意畫幾分鐘，不必評判好壞。", "随意画几分钟，不必评判好坏。"),
+    step("Look at it and notice one thing it shows you.", "看看你的畫，留意它讓你發現的一件事。", "看看你的画，留意它让你发现的一件事。")] },
+  { id: "family-doodle", kind: "art", f: "parenting", min: 6, languages: ["en", "ht", "hs"], t: step("Doodle together with your child", "和孩子一起塗鴉", "和孩子一起涂鸦"), steps: [
+    step("Put one sheet of paper between you and your child.", "在你和孩子之間放一張紙。", "在你和孩子之间放一张纸。"),
+    step("Take turns adding one line or shape each.", "輪流各加一條線或一個形狀。", "轮流各加一条线或一个形状。"),
+    step("Let the picture become whatever it becomes.", "讓這幅畫自由變成任何樣子。", "让这幅画自由变成任何样子。"),
+    step("Ask your child to give it a name.", "請孩子幫這幅畫取個名字。", "请孩子帮这幅画取个名字。")] },
+  { id: "mood-playlist", kind: "music", f: "individual", min: 5, languages: ["en", "ht", "hs"], t: step("A three-song mood playlist", "三首歌的心情歌單", "三首歌的心情歌单"), steps: [
+    step("Pick one song that sounds like how you feel right now.", "選一首聽起來像你此刻心情的歌。", "选一首听起来像你此刻心情的歌。"),
+    step("Pick a second song that feels a little calmer.", "再選一首感覺稍微平靜一點的歌。", "再选一首感觉稍微平静一点的歌。"),
+    step("Pick a third song that feels like where you'd like to be.", "第三首選你希望自己到達的心情。", "第三首选你希望自己到达的心情。"),
+    step("Listen in that order and notice how you shift.", "依序聆聽，留意自己的變化。", "依序聆听，留意自己的变化。")] },
+  { id: "hum-breathe", kind: "music", f: "individual", min: 2, languages: ["en", "ht", "hs"], t: step("Hum on the out-breath", "吐氣時輕輕哼唱", "呼气时轻轻哼唱"), steps: [
+    step("Breathe in slowly through your nose.", "用鼻子慢慢吸氣。", "用鼻子慢慢吸气。"),
+    step("As you breathe out, hum one low, comfortable note.", "吐氣時哼一個低沉、舒服的音。", "呼气时哼一个低沉、舒服的音。"),
+    step("Repeat five times and feel the vibration in your chest.", "重複五次，感受胸口的震動。", "重复五次，感受胸口的震动。")] },
+  { id: "walk-notice", kind: "movement", f: "career", min: 10, languages: ["en", "ht", "hs"], t: step("A ten-minute noticing walk", "十分鐘的觀察散步", "十分钟的观察散步"), steps: [
+    step("Walk at an easy pace, indoors or outside.", "在室內或戶外，用輕鬆的步調走路。", "在室内或户外，用轻松的步调走路。"),
+    step("Notice five things you see and three things you hear.", "留意五樣看到的東西和三種聽到的聲音。", "留意五样看到的东西和三种听到的声音。"),
+    step("Let your arms swing and your shoulders drop.", "讓手臂自然擺動，肩膀放鬆。", "让手臂自然摆动，肩膀放松。"),
+    step("Before you go back in, take one slow breath.", "回去之前，慢慢做一次深呼吸。", "回去之前，慢慢做一次深呼吸。")] },
+  { id: "stretch-desk", kind: "movement", f: "career", min: 3, languages: ["en", "ht", "hs"], t: step("Stretch at your desk", "在座位上伸展", "在座位上伸展"), steps: [
+    step("Roll your shoulders back slowly five times.", "慢慢向後轉動肩膀五次。", "慢慢向后转动肩膀五次。"),
+    step("Gently tilt your head toward each shoulder.", "輕輕把頭側向左右兩邊的肩膀。", "轻轻把头侧向左右两边的肩膀。"),
+    step("Stretch your arms up, then let them fall.", "把雙手往上伸展，再放鬆垂下。", "把双手往上伸展，再放松垂下。"),
+    step("Stop any movement that hurts.", "任何動作感到疼痛就停下來。", "任何动作感到疼痛就停下来。")] },
+);
+
 
 const MOODS = [
   { id: "great", en: "Great", ht: "很好", hs: "很好", color: "#FFD15C", face: "grin" },

@@ -16,7 +16,7 @@ const S = {
   posts: POSTS.map(p => ({ ...p, replies: p.replies.map(r => ({ ...r })) })), thread: null, circle: null,
   crisis: null, toast: null, posted: false, replyDraft: "", breathing: false, petHinted: false, timeOverride: null, enter: null,
   realName: "", nameShow: "anon", history: [], streakGoal: 7, activityDay: null,
-  practiceQuery: "", practiceTopic: "", practiceDuration: "", practiceLanguage: "", savedPractices: [], savedOnly: false, practice: null,
+  practiceQuery: "", practiceKind: "", practiceTopic: "", practiceDuration: "", practiceLanguage: "", savedPractices: [], savedOnly: false, practice: null,
   heroFeature: 0, heroPaused: false, appTour: null, member: false,
   daily: newDaily(), phq: null, phqSample: null, dMedNote: "", dLine: "", checkinSafety: false, phqSafety: false,
   care: null, careShareMode: "moment", journalDraft: "", journalEntries: [], careSound: null, careVolume: 20,
@@ -760,7 +760,7 @@ function guide() {
   return `${hdrSub(t("my_guide"))}<div class="scroll"><p class="pad" style="margin:0;color:var(--ink-2)">${t("guide_intro")}</p>
     ${cur ? guideCard() : ""}
     ${list.length ? list.map(c => `<article class="panel cc"><div class="cc-top"><span class="av" style="background:${c.hue};width:48px;height:48px">${initials(c.name)}</span><div><div class="nm">${esc(c.name)}</div><div class="meta">${c.langs} · ${t("licensed_in", { s: c.states.join(", ") })}</div></div></div>
-      <p>${L(c.bio)}</p>${S.match === c.id ? `<span class="tag answer">${icon("check")}${t("my_guide")}</span>` : `<button class="btn quiet block" data-a="match" data-v="${c.id}">${t("choose_guide")}</button>`}</article>`).join("")
+      <p>${L(c.bio)}</p>${c.approaches && c.approaches.length ? `<p class="approaches">${t("guide_approaches")}: ${c.approaches.map(id => `<span class="kind-chip kind-${id}">${L(supportKind(id))}</span>`).join("")}</p>` : ""}${S.match === c.id ? `<span class="tag answer">${icon("check")}${t("my_guide")}</span>` : `<button class="btn quiet block" data-a="match" data-v="${c.id}">${t("choose_guide")}</button>`}</article>`).join("")
       : `<div class="notice"><h3>${t("all_full_title")}</h3><p>${t("all_full_body")}</p><button class="btn primary" data-a="toast" data-v="waitlisted">${t("waitlist")}</button></div>`}
     <div style="height:12px"></div></div>`;
 }
@@ -885,6 +885,7 @@ function circleScreen() {
 function filteredPractices() {
   const query = S.practiceQuery.trim().toLocaleLowerCase();
   return RESOURCES.filter(r => (!S.savedOnly || S.savedPractices.includes(r.id))
+    && (!S.practiceKind || r.kind === S.practiceKind)
     && (!S.practiceTopic || r.f === S.practiceTopic)
     && (!S.practiceLanguage || r.languages.includes(S.practiceLanguage))
     && (!S.practiceDuration || (S.practiceDuration === "short" ? r.min <= 3 : S.practiceDuration === "medium" ? r.min >= 4 && r.min <= 5 : r.min >= 6))
@@ -894,26 +895,31 @@ function filteredPractices() {
 /* ---------- practice presentation ---------- */
 function practiceLang() { return { en: "en", ht: "zh-Hant", hs: "zh-Hans" }[S.practiceLanguage || S.lang]; }
 function practiceText(text) { return text[S.practiceLanguage || S.lang] || text.en; }
+const supportKind = id => SUPPORT_KINDS.find(k => k.id === id) || SUPPORT_KINDS[0];
+function practiceMeta(r) {
+  const k = supportKind(r.kind);
+  return `<span class="practice-meta"><span class="kind-chip kind-${k.id}">${L(k)}</span>${focusName(r.f)} · ${t("library_minutes", { n: r.min })}</span>${k.selfCare ? `<span class="selfcare-note">${t("library_selfcare")}</span>` : ""}`;
+}
 function practiceSave(r) {
   const saved = S.savedPractices.includes(r.id);
   return `<button class="btn quiet" data-a="savePractice" data-v="${r.id}" aria-pressed="${saved}" aria-label="${t(saved ? "library_unsave" : "library_save")}: ${esc(practiceText(r.t))}">${icon(saved ? "check" : "heart")}${t(saved ? "library_saved" : "library_save")}</button>`;
 }
 function practiceResults() {
   const rows = filteredPractices();
-  return `<p class="muted" role="status">${t("library_count", { n: rows.length })}</p>${rows.length ? rows.map(r => `<article class="panel practice-card"><span class="practice-meta">${focusName(r.f)} · ${t("library_minutes", { n: r.min })}</span><h2 lang="${practiceLang()}">${esc(practiceText(r.t))}</h2><p lang="${practiceLang()}">${esc(practiceText(r.steps[0]))}</p><div class="practice-actions"><button class="btn primary" data-a="openPractice" data-v="${r.id}">${t("library_open")}${icon("chev")}</button>${practiceSave(r)}</div></article>`).join("") : `<div class="notice"><p>${t(S.savedOnly && !S.savedPractices.length ? "library_no_saved" : "library_empty")}</p><button class="btn quiet" data-a="clearPracticeFilters">${t("library_clear")}</button>${S.savedOnly ? `<button class="btn primary" data-a="practiceTab" data-v="all">${t("library_all")}</button>` : ""}</div>`}`;
+  return `<p class="muted" role="status">${t("library_count", { n: rows.length })}</p>${rows.length ? rows.map(r => `<article class="panel practice-card">${practiceMeta(r)}<h2 lang="${practiceLang()}">${esc(practiceText(r.t))}</h2><p lang="${practiceLang()}">${esc(practiceText(r.steps[0]))}</p><div class="practice-actions"><button class="btn primary" data-a="openPractice" data-v="${r.id}">${t("library_open")}${icon("chev")}</button>${practiceSave(r)}</div></article>`).join("") : `<div class="notice"><p>${t(S.savedOnly && !S.savedPractices.length ? "library_no_saved" : "library_empty")}</p><button class="btn quiet" data-a="clearPracticeFilters">${t("library_clear")}</button>${S.savedOnly ? `<button class="btn primary" data-a="practiceTab" data-v="all">${t("library_all")}</button>` : ""}</div>`}`;
 }
 function learnScreen() {
   const select = (key, label, options) => `<label class="practice-filter">${t(label)}<select class="field" data-library-filter="${key}">${options.map(([value, text]) => `<option value="${value}" ${S[key] === value ? "selected" : ""}>${text}</option>`).join("")}</select></label>`;
   return `${hdrSub(t("practice_library"))}<div class="scroll"><div class="pad practice-controls d-split"><div class="d-lead d-sticky"><h1>${t("library_intro")}</h1><p class="muted">${t("library_note")}</p>
     <div class="chips">${["all", "saved"].map(tab => `<button class="chip ${S.savedOnly === (tab === "saved") ? "on" : ""}" aria-pressed="${S.savedOnly === (tab === "saved")}" data-a="practiceTab" data-v="${tab}">${t(tab === "all" ? "library_all" : "library_saved")}${tab === "saved" ? ` (${S.savedPractices.length})` : ""}</button>`).join("")}</div>
     <label class="label" for="practice-search">${t("library_search")}</label><input id="practice-search" type="search" class="field" data-model="practiceQuery" value="${esc(S.practiceQuery)}" placeholder="${t("library_search")}">
-    <div class="practice-filters">${select("practiceTopic", "library_topic", [["",t("library_any")], ...FOCUS.map(f => [f.id,L(f)])])}${select("practiceDuration", "library_duration", [["",t("library_any")], ...["short","medium","long"].map(v => [v,t("library_"+v)])])}${select("practiceLanguage", "library_language", [["",t("library_any")],["en","English"],["ht","繁體中文"],["hs","简体中文"]])}</div><button class="btn quiet" data-a="clearPracticeFilters">${t("library_clear")}</button></div>
+    <div class="practice-filters">${select("practiceKind", "library_kind", [["",t("library_any")], ...SUPPORT_KINDS.map(k => [k.id,L(k)])])}${select("practiceTopic", "library_topic", [["",t("library_any")], ...FOCUS.map(f => [f.id,L(f)])])}${select("practiceDuration", "library_duration", [["",t("library_any")], ...["short","medium","long"].map(v => [v,t("library_"+v)])])}${select("practiceLanguage", "library_language", [["",t("library_any")],["en","English"],["ht","繁體中文"],["hs","简体中文"]])}</div><button class="btn quiet" data-a="clearPracticeFilters">${t("library_clear")}</button></div>
     <div class="d-body" id="practice-results">${practiceResults()}</div></div></div>`;
 }
 function practiceScreen() {
   const r = RESOURCES.find(r => r.id === S.practice);
   if (!r) return learnScreen();
-  return `${hdrSub(t("practice_library"))}<div class="scroll"><article class="pad practice-detail d-split"><div class="d-lead d-sticky"><span class="practice-meta">${focusName(r.f)} · ${t("library_minutes", { n: r.min })}</span><h1 lang="${practiceLang()}">${esc(practiceText(r.t))}</h1><p class="muted">${t("library_gentle")}</p></div><div class="d-body"><ol lang="${practiceLang()}">${r.steps.map(step => `<li>${esc(practiceText(step))}</li>`).join("")}</ol>${practiceSave(r)}<p class="muted">${t("library_note")}</p><button class="btn primary block" data-a="back">${t("library_finish")}</button></div></article></div>`;
+  return `${hdrSub(t("practice_library"))}<div class="scroll"><article class="pad practice-detail d-split"><div class="d-lead d-sticky">${practiceMeta(r)}<h1 lang="${practiceLang()}">${esc(practiceText(r.t))}</h1><p class="muted">${t("library_gentle")}</p></div><div class="d-body"><ol lang="${practiceLang()}">${r.steps.map(step => `<li>${esc(practiceText(step))}</li>`).join("")}</ol>${practiceSave(r)}<p class="muted">${t("library_note")}</p><button class="btn primary block" data-a="back">${t("library_finish")}</button></div></article></div>`;
 }
 /* ---------- friendship transitions ---------- */
 function changeFriendship(id, action) {
@@ -1200,7 +1206,7 @@ const actions = {
   practiceTab(v) { S.savedOnly = v === "saved"; render(); },
   openPractice(v) { go("practice", { practice: v }); },
   savePractice(v) { S.savedPractices = S.savedPractices.includes(v) ? S.savedPractices.filter(id => id !== v) : [...S.savedPractices, v]; render(); },
-  clearPracticeFilters() { Object.assign(S, { practiceQuery: "", practiceTopic: "", practiceDuration: "", practiceLanguage: "" }); render(); },
+  clearPracticeFilters() { Object.assign(S, { practiceQuery: "", practiceKind: "", practiceTopic: "", practiceDuration: "", practiceLanguage: "" }); render(); },
   streakGoal(v) { S.streakGoal = Number(v); render(); },
   activityCheck() { actions.dailyRestart(); },
   sampleWeek() {
