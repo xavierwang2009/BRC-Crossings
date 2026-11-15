@@ -847,6 +847,26 @@ a.help-danger:hover span { text-decoration: underline; }
 .scene-card:active { transform: scale(.96); }
 .scene-card.on { box-shadow: 0 0 0 3px var(--sun), var(--lift); }
 .scene-credit { margin: 0; padding-top: 0; font-size: 12.5px; }
+
+/* ---------- Settings, and the chosen scene behind every page ---------- */
+.backdrop { position: absolute; inset: 0; z-index: -1; background: #cfe3d7 center / cover no-repeat; opacity: 0; transition: opacity .6s; pointer-events: none; }
+.phone.has-scene .backdrop { opacity: 1; }
+.phone.has-scene .scroll { background: rgba(var(--scene-tint), var(--scene-veil)); }
+.phone.has-scene .sheet-top { background: rgb(var(--scene-tint)); }
+.phone.has-scene .hdr, .phone.has-scene .statusbar:not(.sky):not(.plain), .phone.has-scene::before { background: rgba(24, 48, 33, .7); -webkit-backdrop-filter: blur(5px); backdrop-filter: blur(5px); }
+.phone.has-scene .panel:not(.tray):not(.find-guide):not(.guide) { background: rgba(251, 253, 251, .94); }
+.row .k small { display: block; font: 500 var(--fs-s)/1.35 var(--body); color: var(--ink-2); margin-top: 2px; }
+.scene-group { margin: 16px var(--gut) 8px; font: 700 var(--fs-m)/1.3 var(--body); color: var(--forest); }
+.scene-group small { display: block; font: 500 var(--fs-s)/1.35 var(--body); color: var(--ink-2); }
+.scene-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; padding: 0 var(--gut) 6px; }
+.scene-grid .scene-card { width: auto; height: 86px; }
+.scene-grid .scene-card b { font-size: 13.5px; }
+.scene-grid .scene-card span { left: 8px; right: 6px; bottom: 7px; }
+.scene-tick { position: absolute; top: 6px; right: 6px; z-index: 1; width: 24px; height: 24px; border-radius: 50%; background: var(--sun); color: var(--forest); display: grid; place-items: center; }
+.scene-tick .ic { width: 16px; height: 16px; stroke-width: 2.6; }
+.settings-thumb { width: 52px; height: 52px; border-radius: 14px; flex: none; background: #9fb8a8 center / cover; box-shadow: inset 0 0 0 1.5px rgba(255,255,255,.7); }
+.settings-thumb.live { background: linear-gradient(180deg, #8fd0ee 0 46%, #79c267 46% 78%, #b98557 78%); }
+.vol { flex: 1; max-width: 190px; accent-color: var(--forest); min-height: 44px; }
 /* Daily check-in and voluntary mood screening. */
 
 .testbar { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex: none; min-height: 40px; padding: 3px 10px 3px var(--gut); background: var(--sun-soft); color: var(--sun-ink); font: 700 12.5px/1.25 var(--body); }
@@ -945,6 +965,7 @@ a.li { color: var(--ink); text-decoration: none; }
 </head>
 <body>
 <div class="device"><div class="phone" id="phone">
+  <div class="backdrop" id="backdrop" aria-hidden="true"></div>
   <div class="statusbar" id="statusbar"><span>9:41</span><span class="notch"></span><span>5G</span></div>
   <div id="app"></div>
 </div></div>
@@ -1872,30 +1893,46 @@ const MEMBERS = [{ id: "kevin", name: "Kevin W." }, { id: "ana", name: "Ana M." 
    photo (0..1), size = its height as a share of the photo's height, light = the scene's own light. */
 const SCENES = [
   { id: "riverbank", en: "Riverbank", ht: "河岸", hs: "河岸" },
-  { id: "mist", en: "Misty Lake", ht: "晨霧湖", hs: "晨雾湖", photo: "1578141954934-b8af210ecf5e", credit: "Kayvan Mazhar", at: [.55, .89], size: .28,
+  { id: "mist", en: "Misty Lake", ht: "晨霧湖", hs: "晨雾湖", photo: "1578141954934-b8af210ecf5e", tint: "#eef1f3", credit: "Kayvan Mazhar", at: [.55, .89], size: .28,
     light: { sky: "#eef2f6", ground: "#8a8f86", hi: 1.3, key: "#fff6ee", ki: 1.2, dir: [.3, .8, -.6] } },
-  { id: "jetty", en: "Pink Jetty", ht: "粉色碼頭", hs: "粉色码头", photo: "1509634690390-17647079c82f", credit: "Christian Holzinger", at: [.5, .85], size: .3,
+  { id: "jetty", en: "Pink Jetty", ht: "粉色碼頭", hs: "粉色码头", photo: "1509634690390-17647079c82f", tint: "#f8e9e6", credit: "Christian Holzinger", at: [.5, .85], size: .3,
     light: { sky: "#f6d2cc", ground: "#7a6a70", hi: 1.15, key: "#ffd2b8", ki: 1.5, dir: [0, .5, -1] } },
-  { id: "blossom", en: "Blossom Lawn", ht: "櫻花草地", hs: "樱花草地", photo: "1585446903156-0b5f327b936f", credit: "Edan Cohen", at: [.7, .87], size: .28, fx: "petal", dark: true,
+  { id: "blossom", en: "Blossom Lawn", ht: "櫻花草地", hs: "樱花草地", photo: "1585446903156-0b5f327b936f", tint: "#f7eaf0", credit: "Edan Cohen", at: [.7, .87], size: .28, fx: "petal", dark: true,
     light: { sky: "#f6e6ee", ground: "#7f9a6a", hi: 1.3, key: "#fff2f4", ki: 1.3, dir: [-.5, 1, .4] } },
-  { id: "meadow", en: "Wildflower Meadow", ht: "野花草原", hs: "野花草原", photo: "1651940440291-c513e51a5d64", credit: "Natalia Slastnikova", at: [.5, .87], size: .3,
+  { id: "meadow", en: "Wildflower Meadow", ht: "野花草原", hs: "野花草原", photo: "1651940440291-c513e51a5d64", tint: "#edf3e4", credit: "Natalia Slastnikova", at: [.5, .87], size: .3,
     light: { sky: "#e6eef6", ground: "#8aa060", hi: 1.3, key: "#fff6e0", ki: 1.6, dir: [.5, 1, .6] } },
-  { id: "shore", en: "Silky Shore", ht: "晨光沙灘", hs: "晨光沙滩", photo: "1601781263389-c8219d972a05", credit: "Bruce Kee", at: [.42, .87], size: .3,
+  { id: "shore", en: "Silky Shore", ht: "晨光沙灘", hs: "晨光沙滩", photo: "1601781263389-c8219d972a05", tint: "#f6ece4", credit: "Bruce Kee", at: [.42, .87], size: .3,
     light: { sky: "#f4e2d6", ground: "#a89480", hi: 1.25, key: "#ffe0c4", ki: 1.3, dir: [.4, .6, -.8] } },
-  { id: "field", en: "Golden Field", ht: "金色草原", hs: "金色草原", photo: "1772692861822-acafd023527d", credit: "Damir Korotaj", at: [.5, .87], size: .3,
+  { id: "field", en: "Golden Field", ht: "金色草原", hs: "金色草原", photo: "1772692861822-acafd023527d", tint: "#f7eed9", credit: "Damir Korotaj", at: [.5, .87], size: .3,
     light: { sky: "#f6e2c0", ground: "#9a7a4a", hi: 1.15, key: "#ffd08a", ki: 1.9, dir: [0, .5, -1] } },
-  { id: "bench", en: "Lakeside Bench", ht: "湖邊長椅", hs: "湖边长椅", photo: "1473186475640-fb2e82e3c3f8", credit: "Aaron Burden", at: [.5, .94], size: .26, dark: true,
+  { id: "bench", en: "Lakeside Bench", ht: "湖邊長椅", hs: "湖边长椅", photo: "1473186475640-fb2e82e3c3f8", tint: "#eaf0ee", credit: "Aaron Burden", at: [.5, .94], size: .26, dark: true,
     light: { sky: "#e8ecf0", ground: "#6f7a60", hi: 1.2, key: "#fff0dc", ki: 1.2, dir: [.3, .7, -.7] } },
-  { id: "lavender", en: "Lavender Dusk", ht: "薰衣草黃昏", hs: "薰衣草黄昏", photo: "1597839219234-a513027b4e44", credit: "Ben Griffiths", at: [.5, .93], size: .28, dark: true,
+  { id: "lavender", en: "Lavender Dusk", ht: "薰衣草黃昏", hs: "薰衣草黄昏", photo: "1597839219234-a513027b4e44", tint: "#f0e8f5", credit: "Ben Griffiths", at: [.5, .93], size: .28, dark: true,
     light: { sky: "#c79ad6", ground: "#3a2a40", hi: .95, key: "#ff9ad0", ki: 1.2, dir: [0, .4, -1], warm: "#ffb0d8", wi: 2, wat: [0, 1, 1] } },
-  { id: "snow", en: "Snowy Hush", ht: "雪靜", hs: "雪静", photo: "1726327446278-17a17bbf2cc0", credit: "Pietro Dona", at: [.5, .87], size: .3, fx: "snow",
+  { id: "snow", en: "Snowy Hush", ht: "雪靜", hs: "雪静", photo: "1726327446278-17a17bbf2cc0", tint: "#f1ecf6", credit: "Pietro Dona", at: [.5, .87], size: .3, fx: "snow",
     light: { sky: "#ecdcf0", ground: "#e8e8f4", hi: 1.35, key: "#ffd8e4", ki: 1.1, dir: [0, .5, -1] } },
-  { id: "forest", en: "Misty Forest", ht: "霧林", hs: "雾林", photo: "1781120197643-d529cda41a53", credit: "Michael Nau", at: [.5, .84], size: .32,
+  { id: "forest", en: "Misty Forest", ht: "霧林", hs: "雾林", photo: "1781120197643-d529cda41a53", tint: "#e9f0ea", credit: "Michael Nau", at: [.5, .84], size: .32,
     light: { sky: "#e4ece6", ground: "#5a6a48", hi: 1.2, key: "#f4fff0", ki: .9, dir: [.2, 1, .2] } },
-  { id: "street", en: "Evening Lane", ht: "黃昏小巷", hs: "黄昏小巷", photo: "1780922976550-2ebdbc66ef40", credit: "Mche Lee", at: [.5, .9], size: .3, dark: true, people: true,
+  { id: "street", en: "Evening Lane", ht: "黃昏小巷", hs: "黄昏小巷", photo: "1780922976550-2ebdbc66ef40", tint: "#f5ebdf", credit: "Mche Lee", at: [.5, .9], size: .3, dark: true, people: true,
     light: { sky: "#5a5470", ground: "#3a2a20", hi: .85, key: "#ffc890", ki: 1.3, dir: [.6, .8, .5], warm: "#ffb060", wi: 3, wat: [.9, 1.2, .6] } },
-  { id: "park", en: "Park Walk", ht: "公園散步", hs: "公园散步", photo: "1779213206144-33d21b312c93", credit: "Nishank Saini", at: [.5, .9], size: .28, people: true,
+  { id: "park", en: "Park Walk", ht: "公園散步", hs: "公园散步", photo: "1779213206144-33d21b312c93", tint: "#f4efdc", credit: "Nishank Saini", at: [.5, .9], size: .28, people: true,
     light: { sky: "#f6e6c0", ground: "#8a8a50", hi: 1.15, key: "#ffd89a", ki: 1.8, dir: [-.3, .6, -1] } },
+  { id: "shops", en: "Shopping Street", ht: "購物街", hs: "购物街", photo: "1770461694786-34743f3ccdfe", tint: "#f8eedd", credit: "Guillaume Dhalluin", at: [.36, .88], size: .26, people: true,
+    light: { sky: "#f6e4c4", ground: "#8a6a50", hi: 1.15, key: "#ffd09a", ki: 1.7, dir: [-.5, .5, -1] } },
+  { id: "cafe", en: "Café Terrace", ht: "露天咖啡座", hs: "露天咖啡座", photo: "1759050475187-674550fa911e", tint: "#f1f0e6", credit: "Johan Mouchet", at: [.5, .88], size: .26, dark: true, people: true,
+    light: { sky: "#eef0e6", ground: "#9a8a78", hi: 1.25, key: "#fff4e0", ki: 1.3, dir: [.4, 1, .5] } },
+  { id: "promenade", en: "Lakeside Walk", ht: "湖畔步道", hs: "湖畔步道", photo: "1791286863015-36169e0668eb", tint: "#efe9ee", credit: "Fidel Fernando", at: [.52, .93], size: .22, people: true,
+    light: { sky: "#d8c8d8", ground: "#4a5060", hi: 1, key: "#ffc8b0", ki: 1, dir: [.2, .4, -1] } },
+  { id: "rain", en: "Rainy Day", ht: "雨天街角", hs: "雨天街角", photo: "1581876245647-e8f792eebc38", tint: "#edf0ef", credit: "Chinh Le Duc", at: [.66, .93], size: .24, dark: true, people: true, fx: "rain",
+    light: { sky: "#e6eaec", ground: "#7a8088", hi: 1.25, key: "#f4f8ff", ki: .8, dir: [.2, 1, .3] } },
+  { id: "autumn", en: "Autumn Avenue", ht: "秋日大道", hs: "秋日大道", photo: "1750880639583-6d2e914767ab", tint: "#f6efdd", credit: "Berat Cakirca", at: [.62, .9], size: .24, dark: true, people: true,
+    light: { sky: "#eceae4", ground: "#8a8478", hi: 1.25, key: "#fff2dc", ki: .9, dir: [-.3, 1, .4] } },
+  { id: "lantern", en: "Lantern Street", ht: "燈籠老街", hs: "灯笼老街", photo: "1768888440938-e83a299d709c", tint: "#f6eddc", credit: "Yina Li", at: [.5, .9], size: .26, dark: true, people: true,
+    light: { sky: "#f0d8a0", ground: "#4a3a2a", hi: .95, key: "#ffc880", ki: 1.2, dir: [.2, .7, -1], warm: "#ffb060", wi: 2, wat: [-.9, 1.1, .5] } },
+  { id: "lane", en: "Taipei Lane", ht: "台北巷弄", hs: "台北巷弄", photo: "1653726463517-06fff1b5868e", tint: "#eff0ec", credit: "Poh Soo Donald Soh", at: [.45, .9], size: .26, dark: true, people: true,
+    light: { sky: "#e6e8e4", ground: "#6a6a68", hi: 1.15, key: "#fff0d8", ki: 1, dir: [.1, 1, -.4] } },
+  { id: "kyoto", en: "Kyoto Stroll", ht: "京都散步", hs: "京都散步", photo: "1783476780173-4305a13c71b2", tint: "#f1f2ea", credit: "PJH", at: [.55, .9], size: .26, people: true,
+    light: { sky: "#eaf0f4", ground: "#9a948a", hi: 1.2, key: "#ffe0a8", ki: 1.6, dir: [.7, .5, -.8] } },
 ];
 Object.assign(I18N, {
   scene_title: { en: "Scene", ht: "場景", hs: "场景" },
@@ -1903,6 +1940,29 @@ Object.assign(I18N, {
   scene_live: { en: "Live · follows your day", ht: "即時 · 跟著你的一天變化", hs: "实时 · 跟着你的一天变化" },
   scene_people: { en: "A few people around", ht: "附近有幾個人", hs: "附近有几个人" },
   scene_credit: { en: "Photo: {who} · Unsplash", ht: "照片：{who} · Unsplash", hs: "照片：{who} · Unsplash" },
+});
+Object.assign(I18N, {
+  scene_title: { en: "Background", ht: "背景", hs: "背景" },
+  settings: { en: "Settings", ht: "設定", hs: "设置" },
+  settings_sub: { en: "Background: {scene} · Music {music}", ht: "背景：{scene} · 音樂{music}", hs: "背景：{scene} · 音乐{music}" },
+  on: { en: "on", ht: "開", hs: "开" },
+  off: { en: "off", ht: "關", hs: "关" },
+  bg_title: { en: "Background", ht: "背景", hs: "背景" },
+  bg_sub: { en: "Pick a place. It sits softly behind every page, and {pet} waits for you there.", ht: "選一個地方。它會淡淡地襯在每一頁後面，{pet}也在那裡等你。", hs: "选一个地方。它会淡淡地衬在每一页后面，{pet}也在那里等你。" },
+  bg_quiet: { en: "Quiet places", ht: "安靜的地方", hs: "安静的地方" },
+  bg_people: { en: "With people around", ht: "有人在身邊", hs: "有人在身边" },
+  bg_people_sub: { en: "For days when you'd rather not be alone.", ht: "不想一個人的時候。", hs: "不想一个人的时候。" },
+  bg_everywhere: { en: "Show on every page", ht: "在每一頁顯示", hs: "在每一页显示" },
+  bg_everywhere_sub: { en: "Turn off to keep it on the Companion page only.", ht: "關閉後只在小夥伴頁顯示。", hs: "关闭后只在小伙伴页显示。" },
+  fx_on: { en: "Falling petals, snow and rain", ht: "飄落的花瓣、雪和雨", hs: "飘落的花瓣、雪和雨" },
+  fx_sub: { en: "On the places that have them.", ht: "在有這些效果的地方顯示。", hs: "在有这些效果的地方显示。" },
+  sound_title: { en: "Sound", ht: "聲音", hs: "声音" },
+  music_on: { en: "Background music", ht: "背景音樂", hs: "背景音乐" },
+  music_on_sub: { en: "Soft and quiet, while the app is open.", ht: "輕柔安靜，使用 App 時播放。", hs: "轻柔安静，使用 App 时播放。" },
+  music_choice: { en: "Music style", ht: "音樂風格", hs: "音乐风格" },
+  music_note: { en: "The music is made on your phone, so it uses no data. It pauses when you leave the app.", ht: "音樂在你的手機上產生，不耗流量。離開 App 時會暫停。", hs: "音乐在你的手机上生成，不耗流量。离开 App 时会暂停。" },
+  app_tour_settings: { en: "Make it yours", ht: "佈置成你喜歡的樣子", hs: "布置成你喜欢的样子" },
+  app_tour_settings_body: { en: "In Me, open Settings to choose a background for the whole app, from quiet places to streets with people around, and to turn soft music on or off.", ht: "在「我」打開「設定」，為整個 App 選一個背景，從安靜的地方到有人來往的街道，也可以開關輕柔的音樂。", hs: "在「我」打开「设置」，为整个 App 选一个背景，从安静的地方到有人来往的街道，也可以开关轻柔的音乐。" },
 });
 /* Test build: copy for the daily check-in and the voluntary mood screening (EN / 繁 / 简).
    PHQ below is verbatim from the published forms on phqscreeners.com:
@@ -3761,7 +3821,7 @@ const S = {
   daily: newDaily(), phq: null, phqSample: null, dMedNote: "", dLine: "", checkinSafety: false, phqSafety: false,
   care: null, careShareMode: "moment", journalDraft: "", journalEntries: [], careSound: null, careVolume: 20,
   friendships: {}, friendRecipient: null, friendMessages: {}, friendDrafts: {},
-  scene: "riverbank", moodEdit: false, phqLast: null, bonusDay: {}, baseSpecies: null, guideZh: null, draftCircle: null, menu: null,
+  scene: "riverbank", sceneAll: true, sceneFx: true, musicOn: false, musicKind: "piano", musicVol: 20, moodEdit: false, phqLast: null, bonusDay: {}, baseSpecies: null, guideZh: null, draftCircle: null, menu: null,
   away: false, talk: { node: null, shown: null, typed: null, at: 0, seen: {}, ambient: 0 },
 };
 
@@ -3881,7 +3941,7 @@ const SAVE_KEY = "brc-crossings-v1";
 const SAVED = ["lang", "member", "age", "terms", "optMatch", "optJournal", "focuses", "mainFocus", "state", "species", "baseSpecies", "petName", "companionChosen",
   "seeds", "earnedToday", "bonusDay", "activityDay", "mood", "checkedIn", "daily", "dMedNote", "dLine", "checkinSafety", "phqSafety", "phqLast", "history", "streakGoal",
   "joined", "owned", "wear", "helpful", "translated", "seen", "posts", "posted", "match", "dm", "realName", "nameShow", "savedPractices", "journalEntries",
-  "friendships", "friendMessages", "shareMood", "guideZh", "careVolume", "petHinted", "scene"];
+  "friendships", "friendMessages", "shareMood", "guideZh", "careVolume", "petHinted", "scene", "sceneAll", "sceneFx", "musicOn", "musicKind", "musicVol"];
 const PERSIST = !location.search;
 function saveState() {
   if (!PERSIST) return;
@@ -3899,7 +3959,7 @@ function loadState() {
 function toast(msg, ic = "seed") { S.toast = { msg, ic, id: Date.now() }; }
 /* Home, Circles, Companion and Me are tab roots: going to one switches tabs instead of stacking a copy. */
 const TAB_ROOTS = ["home", "circles", "companion", "me"];
-const SECTION_OF = { dailyDone: "companion", phqIntro: "companion", phqResult: "companion", shop: "companion", circle: "circles" };
+const SECTION_OF = { settings: "me", dailyDone: "companion", phqIntro: "companion", phqResult: "companion", shop: "companion", circle: "circles" };
 const NO_TAB_BAR = ["daily", "phq","compose", "thread", "dm", "friendDm", "counselor"];
 /* Home is the public welcome page until the Member signs in or finishes setup; after that it is their own Home. */
 const landing = () => S.screen === "home" && !S.member;
@@ -3940,6 +4000,7 @@ const ICONS = {
   calendar: '<rect x="4" y="5.5" width="16" height="14.5" rx="2"/><path d="M4 10h16M8.5 3.5v4M15.5 3.5v4"/>',
   shield: '<path d="M12 3.8l7 2.6v5.2c0 4.3-3 7.6-7 8.8-4-1.2-7-4.5-7-8.8V6.4z"/><path d="M8.8 12l2.2 2.2 4.2-4.4"/>',
   phone: '<path d="M6.5 4.5h3l1.5 4-2 1.3a10 10 0 0 0 5.2 5.2l1.3-2 4 1.5v3a1.8 1.8 0 0 1-2 1.8C10.7 18.6 5.4 13.3 4.7 6.5a1.8 1.8 0 0 1 1.8-2z"/>',
+  sliders: '<path d="M4.5 7h8M17.5 7h2M4.5 12h2.5M12 12h7.5M4.5 17h6M15.5 17h4"/><circle cx="15" cy="7" r="2.3"/><circle cx="9.5" cy="12" r="2.3"/><circle cx="13" cy="17" r="2.3"/>',
   lock: '<rect x="5.5" y="10.5" width="13" height="9.5" rx="2"/><path d="M8.5 10.5V8a3.5 3.5 0 0 1 7 0v2.5"/>',
   external: '<path d="M13.5 5.5h5v5M18.5 5.5l-8 8"/><path d="M17 14v4.5H5.5V7H10"/>',
   globe: '<circle cx="12" cy="12" r="8"/><path d="M4 12h16M12 4c2.3 2.3 3.4 5 3.4 8s-1.1 5.7-3.4 8c-2.3-2.3-3.4-5-3.4-8S9.7 6.3 12 4z"/>',
@@ -4025,9 +4086,10 @@ function placeScene(el) {
   const k = Math.max(W / iw, F / ih) * 1.2, dw = iw * k, dh = ih * k;
   const left = Math.min(0, Math.max(W - dw, W / 2 - sc.at[0] * dw)), top = Math.min(0, Math.max(F - dh, F * 0.84 - sc.at[1] * dh));
   el.classList.add("photo-scene");
-  Object.assign(el.style, { backgroundImage: `linear-gradient(180deg, rgba(230,243,238,0) ${Math.round(F - 34)}px, #e6f3ee ${Math.round(F + 10)}px), url("${scenePhoto(sc)}")`,
+  const page = backdropOn() ? sc.tint : "#e6f3ee";
+  Object.assign(el.style, { backgroundImage: `linear-gradient(180deg, rgba(${rgbOf(page)},0) ${Math.round(F - 34)}px, ${page} ${Math.round(F + 10)}px), url("${scenePhoto(sc)}")`,
     backgroundSize: `100% 100%, ${dw}px ${dh}px`, backgroundPosition: `0 0, ${left}px ${top}px` });
-  if (sc.fx && !REDUCED_UI.matches && !el.querySelector(".scene-fx")) el.insertAdjacentHTML("beforeend", `<canvas class="scene-fx" data-fx="${sc.fx}" aria-hidden="true"></canvas>`);
+  if (sc.fx && S.sceneFx && !REDUCED_UI.matches && !el.querySelector(".scene-fx")) el.insertAdjacentHTML("beforeend", `<canvas class="scene-fx" data-fx="${sc.fx}" aria-hidden="true"></canvas>`);
   world.setAnchor({ x: left + sc.at[0] * dw, y: top + sc.at[1] * dh, h: sc.size * dh });
 }
 /* Drifting petals or snow over a scene that has them. */
@@ -4036,19 +4098,61 @@ const fxBits = [];
   requestAnimationFrame(sceneFx);
   const cv = document.querySelector(".scene-fx");
   if (!cv || document.hidden) return;
-  const W = cv.clientWidth, H = cv.clientHeight, d = Math.min(window.devicePixelRatio || 1, 2), snow = cv.dataset.fx === "snow", t = now / 1000;
+  const W = cv.clientWidth, H = cv.clientHeight, d = Math.min(window.devicePixelRatio || 1, 2), snow = cv.dataset.fx === "snow", rain = cv.dataset.fx === "rain", t = now / 1000;
   if (cv.width !== Math.round(W * d)) { cv.width = Math.round(W * d); cv.height = Math.round(H * d); }
   const c = cv.getContext("2d"); c.setTransform(d, 0, 0, d, 0, 0); c.clearRect(0, 0, W, H);
   while (fxBits.length < 34) fxBits.push({ x: Math.random(), y: Math.random(), s: .6 + Math.random() * .8, p: Math.random() * 9, r: Math.random() * 6 });
   for (const q of fxBits) {
-    q.y += (snow ? .0011 : .0008) * q.s; q.x += (snow ? 0 : .0006) + Math.sin(t * .8 + q.p) * .0007; q.r += .02;
-    if (q.y > 1.03) { q.y = -.03; q.x = Math.random(); } if (q.x > 1.03) q.x = -.03;
+    if (rain) { q.y += .011 * q.s; q.x -= .0011 * q.s; }
+    else { q.y += (snow ? .0011 : .0008) * q.s; q.x += (snow ? 0 : .0006) + Math.sin(t * .8 + q.p) * .0007; q.r += .02; }
+    if (q.y > 1.03) { q.y = -.03; q.x = Math.random(); } if (q.x > 1.03) q.x = -.03; if (q.x < -.03) q.x = 1.03;
     c.save(); c.translate(q.x * W, q.y * H);
-    if (snow) { c.fillStyle = `rgba(255,255,255,${.5 + .3 * q.s / 1.4})`; c.beginPath(); c.arc(0, 0, 1 + q.s * 1.3, 0, 7); c.fill(); }
+    if (rain) { c.strokeStyle = `rgba(236,243,250,${.28 + .22 * q.s / 1.4})`; c.lineWidth = 1; c.beginPath(); c.moveTo(0, 0); c.lineTo(-1.6 * q.s, 15 * q.s); c.stroke(); }
+    else if (snow) { c.fillStyle = `rgba(255,255,255,${.5 + .3 * q.s / 1.4})`; c.beginPath(); c.arc(0, 0, 1 + q.s * 1.3, 0, 7); c.fill(); }
     else { c.rotate(q.r); c.scale(1, .55 + .45 * Math.sin(t * 2 + q.p)); c.fillStyle = "rgba(255,196,214,.85)"; c.beginPath(); c.ellipse(0, 0, 3.6 * q.s, 2.4 * q.s, 0, 0, 7); c.fill(); }
     c.restore();
   }
 })(0);
+/* The chosen scene also sits behind every page, under a veil of its own soft colour so words stay easy to read. */
+const rgbOf = hex => [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16)).join(",");
+const backdropOn = () => !!(sceneNow() && S.sceneAll && S.member && !["onboard", "counselor"].includes(S.screen));
+let backdropFor = null;
+function applyBackdrop() {
+  const ph = document.querySelector("#phone"), bd = document.querySelector("#backdrop");
+  if (!ph || !bd) return;
+  const sc = backdropOn() ? sceneNow() : null;
+  ph.classList.toggle("has-scene", !!sc);
+  if (!sc) return;
+  ph.style.setProperty("--scene-tint", rgbOf(sc.tint));
+  ph.style.setProperty("--scene-veil", sc.dark ? ".9" : ".78");
+  bd.style.backgroundPosition = `${Math.round(sc.at[0] * 100)}% 50%`;
+  if (backdropFor === sc.id) return;
+  backdropFor = sc.id;
+  const url = scenePhoto(sc), img = new Image();
+  img.onload = () => { if (backdropFor === sc.id) bd.style.backgroundImage = `url("${url}")`; };
+  img.src = url;
+}
+const sceneCard = sc => { const on = S.scene === sc.id;
+  return `<button class="scene-card ${on ? "on" : ""} ${sc.photo ? "" : "live"}" data-a="scene" data-v="${sc.id}" aria-pressed="${on}" ${sc.photo ? `style="background-image:url('${scenePhoto(sc, 320)}')"` : ""}><span><b>${L(sc)}</b>${sc.photo ? "" : `<small>${t("scene_live")}</small>`}</span>${on ? `<i class="scene-tick" aria-hidden="true">${icon("check")}</i>` : ""}</button>`; };
+function settingsScreen() {
+  const cur = sceneNow(), sw = (k, label, sub, a = "flag") => `<label class="row"><span class="k">${label}${sub ? `<small>${sub}</small>` : ""}</span><input type="checkbox" class="switch" data-a="${a}" data-v="${k}" ${S[k] ? "checked" : ""}></label>`;
+  const grid = list => `<div class="scene-grid" role="group">${list.map(sceneCard).join("")}</div>`;
+  return `${hdrSub(t("settings"))}<div class="scroll" id="settingsScroll">
+    <h2 class="section-h">${t("bg_title")}</h2><p class="pad muted scene-sub">${t("bg_sub", { pet: esc(S.petName) })}</p>
+    <h3 class="scene-group">${t("bg_quiet")}</h3>${grid(SCENES.filter(s => !s.people))}
+    <h3 class="scene-group">${t("bg_people")}<small>${t("bg_people_sub")}</small></h3>${grid(SCENES.filter(s => s.people))}
+    ${cur ? `<p class="pad muted scene-credit">${t("scene_credit", { who: esc(cur.credit) })}</p>` : ""}
+    <div class="panel" style="padding:2px 14px;margin-top:14px">${sw("sceneAll", t("bg_everywhere"), t("bg_everywhere_sub"))}${sw("sceneFx", t("fx_on"), t("fx_sub"))}</div>
+    <h2 class="section-h">${t("sound_title")}</h2>
+    <div class="panel" style="padding:2px 14px">${sw("musicOn", t("music_on"), t("music_on_sub"), "musicFlag")}
+      <div class="row" style="flex-wrap:wrap"><span class="k" style="flex-basis:100%">${t("music_choice")}</span><div class="chips">${["piano", "ambient"].map(k => `<button class="chip ${S.musicKind === k ? "on" : ""}" data-a="musicKind" data-v="${k}" aria-pressed="${S.musicKind === k}">${t("music_" + k)}</button>`).join("")}</div></div>
+      <label class="row" for="music-volume"><span class="k">${t("care_volume")}</span><input id="music-volume" class="vol" type="range" min="0" max="100" value="${S.musicVol}" aria-label="${t("music_volume")}"></label>
+    </div><p class="pad muted" style="margin-top:0">${t("music_note")}</p></div>`;
+}
+function settingsLink() {
+  const sc = SCENES.find(s => s.id === S.scene) || SCENES[0];
+  return `<button class="panel activity-link settings-link" data-a="go" data-v="settings"><i class="settings-thumb ${sc.photo ? "" : "live"}" ${sc.photo ? `style="background-image:url('${scenePhoto(sc, 320)}')"` : ""} aria-hidden="true"></i><span><b>${t("settings")}</b><small>${t("settings_sub", { scene: L(sc), music: t(S.musicOn ? "on" : "off") })}</small></span>${icon("chev")}</button>`;
+}
 function scenePicker() {
   const card = sc => { const on = S.scene === sc.id;
     return `<button class="scene-card ${on ? "on" : ""} ${sc.photo ? "" : "live"}" data-a="scene" data-v="${sc.id}" aria-pressed="${on}" ${sc.photo ? `style="background-image:url('${scenePhoto(sc, 320)}')"` : ""}><span><b>${L(sc)}</b>${sc.people ? `<small>${t("scene_people")}</small>` : sc.photo ? "" : `<small>${t("scene_live")}</small>`}</span></button>`; };
@@ -4073,7 +4177,7 @@ function hdrSub(title) {
   return `<header class="hdr"><div class="hdr-row" style="padding-left:8px"><button class="back-btn" data-a="back" aria-label="${t("back")}: ${backLabel()}">${icon("back")}<span>${backLabel()}</span></button>
     <span class="hdr-title">${title}</span>${helpBtn()}</div></header>`;
 }
-const BACK_LABEL = { dailyDone: "daily_title", phqResult: "result_title", phqIntro: "mood_check", ask: "ask", friends: "friends_title", home: "home", circles: "circles", companion: "companion", me: "me", shop: "shop", learn: "learn", guide: "my_guide" };
+const BACK_LABEL = { settings: "settings", dailyDone: "daily_title", phqResult: "result_title", phqIntro: "mood_check", ask: "ask", friends: "friends_title", home: "home", circles: "circles", companion: "companion", me: "me", shop: "shop", learn: "learn", guide: "my_guide" };
 function backLabel() { const prev = S.stack[S.stack.length - 1]; const k = prev && BACK_LABEL[prev.screen]; return k ? t(k) : t("back"); }
 function tabs(active) {
   const tab = (id, ic, label) => `<button class="${active === id ? "on" : ""}" data-a="tab" data-v="${id}" ${active === id ? 'aria-current="page"' : ""}>${icon(ic)}<span>${label}</span></button>`;
@@ -4803,6 +4907,7 @@ function meScreen() {
     <div class="pad" style="display:flex;gap:14px;align-items:center"><span class="item" style="width:92px;height:92px;padding:4px;flex:none"><span class="art" style="width:100%">${thumb(S.species, S.wear.find(w => ["hat", "scarf"].includes(w)))}</span></span>
       <div><div style="font:600 var(--fs-l)/1.2 var(--display);color:var(--forest)">${esc(S.realName.trim() || t("not_set"))}</div><div class="muted">${t("community_sees", { who: esc(displayName() || t("anonymous")) })}</div><div class="muted">${esc(S.petName)} · ${L(species(S.species))}</div>
       <div class="muted" style="display:flex;gap:4px;align-items:center">${icon("star")}${focusName(S.mainFocus || "individual")}${S.focuses.length > 1 ? ` +${S.focuses.length - 1}` : ""}</div></div></div>
+    ${settingsLink()}
     <div class="panel" style="padding:2px 14px">
       <div class="row"><span class="k">${t("language")}</span><div class="chips">${[["en", "EN"], ["ht", "繁"], ["hs", "简"]].map(([l, n]) => `<button class="chip ${S.lang === l ? "on" : ""}" style="min-width:48px;justify-content:center" data-a="lang" data-v="${l}" aria-pressed="${S.lang === l}">${n}</button>`).join("")}</div></div>
       <div class="row" style="flex-wrap:wrap"><span class="k" style="flex-basis:100%">${t("location")}</span><div class="chips">${STATES.map(s => `<button class="chip ${S.state === s.id ? "on" : ""}" data-a="state" data-v="${s.id}" aria-pressed="${S.state === s.id}">${L(s)}</button>`).join("")}</div></div>
@@ -4884,13 +4989,13 @@ const APP_TOUR = [
   ["activity", "app_tour_activity", "app_tour_activity_body", ".streak-pair"],
   ["shop", "app_tour_shop", "app_tour_shop_body", ".grid2 .item"],
   ["me", "app_tour_profile", "app_tour_profile_body", ".tour-profile"],
-  ["home", "app_tour_music", "app_tour_music_body", ".music-controls"],
+  ["me", "app_tour_settings", "app_tour_settings_body", ".settings-link"],
 ];
 function appTourPanel() {
   const index = S.appTour, step = APP_TOUR[index];
   return `<div class="app-tour-overlay"><div class="app-tour-spotlight" aria-hidden="true"></div><section class="app-tour-card" role="dialog" aria-modal="true" aria-labelledby="app-tour-title" aria-describedby="app-tour-body">
     <div class="app-tour-top"><span>${t("app_tour_demo")}</span><span>${t("app_tour_step", {n:index + 1, total:APP_TOUR.length})}</span></div>
-    ${index === 0 ? homeLanguages() : ""}<h2 id="app-tour-title">${t(step[1])}</h2><p id="app-tour-body">${t(step[2])}</p>${step[1] === "app_tour_music" ? `<button class="btn quiet app-tour-music" data-a="music">${t(backgroundMusic ? "music_pause" : "music_play")}</button>` : ""}
+    ${index === 0 ? homeLanguages() : ""}<h2 id="app-tour-title">${t(step[1])}</h2><p id="app-tour-body">${t(step[2])}</p>
     <div class="app-tour-actions"><button class="app-tour-exit" data-a="appTourExit">${t("app_tour_skip")}</button>${index ? `<button class="btn quiet" data-a="appTourMove" data-v="-1">${t("app_tour_previous")}</button>` : ""}<button class="btn primary" data-a="appTourMove" data-v="1" data-autofocus>${t(index === APP_TOUR.length - 1 ? "app_tour_finish" : "app_tour_next")}</button></div>
   </section></div>`;
 }
@@ -4924,7 +5029,7 @@ function highlightAppTour() {
 /* ---------- render ---------- */
 function view() {
   if (S.screen === "onboard") return onboarding();
-  const map = { daily: dailyScreen, dailyDone, phqIntro, phq: phqScreen, phqResult, counselor: counselorWorkspace, ask: askScreen, friendDm, friends: friendsScreen, activity: activityScreen, home, compose, thread, guide, dm, companion: companionScreen, shop: shopScreen, circles: circlesScreen, circle: circleScreen, learn: learnScreen, practice: practiceScreen, me: meScreen };
+  const map = { daily: dailyScreen, dailyDone, phqIntro, phq: phqScreen, phqResult, counselor: counselorWorkspace, ask: askScreen, friendDm, friends: friendsScreen, activity: activityScreen, home, compose, thread, guide, dm, companion: companionScreen, shop: shopScreen, circles: circlesScreen, circle: circleScreen, learn: learnScreen, practice: practiceScreen, me: meScreen, settings: settingsScreen };
   return (map[S.screen] || home)();
 }
 let lastScreen = null, lastSheet = null;
@@ -4945,7 +5050,8 @@ function render(nav = false) {
   document.documentElement.dataset.lang = S.lang;
   document.documentElement.lang = S.lang === "en" ? "en" : zhTag();
   syncWorld();
-  let html = musicControls() + view();
+  applyBackdrop();
+  let html = view();
   if (DEMO && ["daily", "dailyDone", "phqIntro", "phq", "phqResult"].includes(S.screen)) html = testBar() + html;
   if (!landing() && S.screen !== "onboard" && !NO_TAB_BAR.includes(S.screen)) html += tabs(sectionTab());
   if (S.appTour !== null) html += appTourPanel();
@@ -5014,7 +5120,16 @@ const actions = {
   appTourExit() { S.appTour = null; S.screen = "home"; S.stack = []; render(true); document.querySelector('[data-a="appTourStart"]')?.focus(); },
   appTourMove(v) { const next = S.appTour + Number(v); if (next >= APP_TOUR.length) { actions.appTourExit(); return; } S.appTour = next; S.screen = APP_TOUR[next][0]; S.stack = []; render(true); },
   ...CHECKIN_ACTIONS,
-  music() { toggleBackgroundMusic(); },
+  music() { actions.musicFlag(null, { checked: !backgroundMusic }); },
+  // Music is the Member's choice: off until they turn it on, and it comes back with the app once they have.
+  async musicFlag(v, el) {
+    S.musicOn = el.checked;
+    if (S.musicOn === !!backgroundMusic) { render(); return; }
+    musicVolume = S.musicVol;
+    await toggleBackgroundMusic();
+    if (S.musicOn && !backgroundMusic) { S.musicOn = false; render(); }
+  },
+  musicKind(v) { if (!["piano", "ambient"].includes(v) || v === S.musicKind) return; S.musicKind = v; chooseBackgroundMusic(v); },
   scene(v) { if (!SCENES.some(s => s.id === v)) return; S.scene = v; render(); document.querySelector("#compScroll")?.scrollTo({ top: 0, behavior: REDUCED_UI.matches ? "auto" : "smooth" }); },
   postMenu(v) { S.menu = v; render(); },
   closeMenu() { S.menu = null; render(); },
@@ -5224,6 +5339,7 @@ document.addEventListener("click", e => {
 document.addEventListener("change", e => {
   const el = e.target;
   if (el.id === "music-choice") { chooseBackgroundMusic(el.value); return; }
+  if (el.id === "music-volume") { saveState(); return; }
   if (el.dataset.cwFilter) { CW[el.dataset.cwFilter] = el.value; render(); return; }
   if (el.dataset.libraryFilter) { S[el.dataset.libraryFilter] = el.value; $("#practice-results").innerHTML = practiceResults(); return; }
   if (el.matches("input[type=checkbox][data-a]")) actions[el.dataset.a](el.dataset.v, el);
@@ -5231,7 +5347,7 @@ document.addEventListener("change", e => {
 document.addEventListener("input", e => {
   const el = e.target;
   if (el.matches("[data-cw-draft]")) { CW.drafts[CW.selected] = el.value; document.querySelector('[data-a="cwReply"]').disabled = !el.value.trim(); return; }
-  if (el.id === "music-volume") { musicVolume = +el.value; if (backgroundMusic) backgroundMusic.master.gain.setTargetAtTime(musicVolume / 100 * .5, backgroundMusic.ctx.currentTime, .1); return; }
+  if (el.id === "music-volume") { musicVolume = S.musicVol = +el.value; if (backgroundMusic) backgroundMusic.master.gain.setTargetAtTime(musicVolume / 100 * .5, backgroundMusic.ctx.currentTime, .1); return; }
   if (el.id === "care-volume") { S.careVolume = +el.value; if (careAudio) careAudio.careGain.gain.setTargetAtTime(S.careVolume / 100 * .25, careAudio.currentTime, .1); return; }
   if (el.matches("[data-friend-draft]")) { S.friendDrafts[S.friendRecipient] = el.value; return; }
   const k = el.dataset && el.dataset.model; if (!k) return;
@@ -5268,6 +5384,10 @@ if (loadState()) {
   if (S.member) S.screen = "home";
   // A day or more away: the Companion naps and wakes glad to see the Member.
   if (S.member && S.activityDay && S.activityDay < shiftDay(dayKey(), -1)) S.away = true;
+  if (!SCENES.some(s => s.id === S.scene)) S.scene = "riverbank";
+  // Browsers only let sound start from a tap, so music the Member left on resumes at their first one.
+  musicVolume = S.musicVol; musicChoice = S.musicKind;
+  if (S.member && S.musicOn) startDefaultMusic();
 }
 /* Deep links for reviewing screens: ?skip=1, ?screen=…, ?lang=ht, ?step=2, ?loc=INTL, ?checkedin=1, ?mood=sad, ?match=k1, ?sheet=held, ?thread=p1, ?draft=…, ?time=22 */
 if (params.get("skip") === "1" || params.get("screen")) Object.assign(S, { member: true, joined: ["c1"], friendships: { kevin: "friend" }, realName: "Lily Zhang", nameShow: "initials", companionChosen: true, petName: "Pebble", screen: "home", age: true, terms: true, optMatch: true, focuses: ["parenting"], mainFocus: "parenting", state: "TX" });
@@ -5294,6 +5414,7 @@ initWorld();
 
 document.addEventListener("visibilitychange", () => { if (document.hidden && careAudio) { stopCareAudio(); render(); } });
 window.addEventListener("pagehide", stopCareAudio);
+document.addEventListener("visibilitychange", () => { if (!document.hidden && S.member && S.musicOn && !backgroundMusic) startDefaultMusic(); });
 window.addEventListener("resize", highlightAppTour);
 window.addEventListener("resize", mountStage);
 

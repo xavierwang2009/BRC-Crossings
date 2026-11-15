@@ -17,7 +17,8 @@ self.addEventListener("fetch", event => {
   const url = new URL(req.url), same = url.origin === self.location.origin;
   if (!same && !CDN.includes(url.hostname)) return;
   if (req.mode === "navigate") {
-    event.respondWith(fetch(req).then(res => {
+    // Ask the server each time, so a build saved by the browser a few minutes ago is not shown in place of a newer one.
+    event.respondWith(fetch(req.url, { cache: "no-cache" }).then(res => {
       if (res.ok) { const copy = res.clone(); caches.open(CACHE).then(cache => cache.put("./", copy)); }
       return res;
     }).catch(() => caches.match("./")));

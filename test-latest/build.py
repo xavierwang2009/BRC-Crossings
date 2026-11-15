@@ -53,6 +53,7 @@ html = f"""<!doctype html>
 </head>
 <body>
 <div class="device"><div class="phone" id="phone">
+  <div class="backdrop" id="backdrop" aria-hidden="true"></div>
   <div class="statusbar" id="statusbar"><span>9:41</span><span class="notch"></span><span>5G</span></div>
   <div id="app"></div>
 </div></div>

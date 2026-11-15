@@ -23,7 +23,7 @@ const S = {
   daily: newDaily(), phq: null, phqSample: null, dMedNote: "", dLine: "", checkinSafety: false, phqSafety: false,
   care: null, careShareMode: "moment", journalDraft: "", journalEntries: [], careSound: null, careVolume: 20,
   friendships: {}, friendRecipient: null, friendMessages: {}, friendDrafts: {},
-  scene: "riverbank", moodEdit: false, phqLast: null, bonusDay: {}, baseSpecies: null, guideZh: null, draftCircle: null, menu: null,
+  scene: "riverbank", sceneAll: true, sceneFx: true, musicOn: false, musicKind: "piano", musicVol: 20, moodEdit: false, phqLast: null, bonusDay: {}, baseSpecies: null, guideZh: null, draftCircle: null, menu: null,
   away: false, talk: { node: null, shown: null, typed: null, at: 0, seen: {}, ambient: 0 },
 };
 
@@ -143,7 +143,7 @@ const SAVE_KEY = "brc-crossings-v1";
 const SAVED = ["lang", "member", "age", "terms", "optMatch", "optJournal", "focuses", "mainFocus", "state", "species", "baseSpecies", "petName", "companionChosen",
   "seeds", "earnedToday", "bonusDay", "activityDay", "mood", "checkedIn", "daily", "dMedNote", "dLine", "checkinSafety", "phqSafety", "phqLast", "history", "streakGoal",
   "joined", "owned", "wear", "helpful", "translated", "seen", "posts", "posted", "match", "dm", "realName", "nameShow", "savedPractices", "journalEntries",
-  "friendships", "friendMessages", "shareMood", "guideZh", "careVolume", "petHinted", "scene"];
+  "friendships", "friendMessages", "shareMood", "guideZh", "careVolume", "petHinted", "scene", "sceneAll", "sceneFx", "musicOn", "musicKind", "musicVol"];
 const PERSIST = !location.search;
 function saveState() {
   if (!PERSIST) return;
@@ -161,7 +161,7 @@ function loadState() {
 function toast(msg, ic = "seed") { S.toast = { msg, ic, id: Date.now() }; }
 /* Home, Circles, Companion and Me are tab roots: going to one switches tabs instead of stacking a copy. */
 const TAB_ROOTS = ["home", "circles", "companion", "me"];
-const SECTION_OF = { dailyDone: "companion", phqIntro: "companion", phqResult: "companion", shop: "companion", circle: "circles" };
+const SECTION_OF = { settings: "me", dailyDone: "companion", phqIntro: "companion", phqResult: "companion", shop: "companion", circle: "circles" };
 const NO_TAB_BAR = ["daily", "phq","compose", "thread", "dm", "friendDm", "counselor"];
 /* Home is the public welcome page until the Member signs in or finishes setup; after that it is their own Home. */
 const landing = () => S.screen === "home" && !S.member;
@@ -202,6 +202,7 @@ const ICONS = {
   calendar: '<rect x="4" y="5.5" width="16" height="14.5" rx="2"/><path d="M4 10h16M8.5 3.5v4M15.5 3.5v4"/>',
   shield: '<path d="M12 3.8l7 2.6v5.2c0 4.3-3 7.6-7 8.8-4-1.2-7-4.5-7-8.8V6.4z"/><path d="M8.8 12l2.2 2.2 4.2-4.4"/>',
   phone: '<path d="M6.5 4.5h3l1.5 4-2 1.3a10 10 0 0 0 5.2 5.2l1.3-2 4 1.5v3a1.8 1.8 0 0 1-2 1.8C10.7 18.6 5.4 13.3 4.7 6.5a1.8 1.8 0 0 1 1.8-2z"/>',
+  sliders: '<path d="M4.5 7h8M17.5 7h2M4.5 12h2.5M12 12h7.5M4.5 17h6M15.5 17h4"/><circle cx="15" cy="7" r="2.3"/><circle cx="9.5" cy="12" r="2.3"/><circle cx="13" cy="17" r="2.3"/>',
   lock: '<rect x="5.5" y="10.5" width="13" height="9.5" rx="2"/><path d="M8.5 10.5V8a3.5 3.5 0 0 1 7 0v2.5"/>',
   external: '<path d="M13.5 5.5h5v5M18.5 5.5l-8 8"/><path d="M17 14v4.5H5.5V7H10"/>',
   globe: '<circle cx="12" cy="12" r="8"/><path d="M4 12h16M12 4c2.3 2.3 3.4 5 3.4 8s-1.1 5.7-3.4 8c-2.3-2.3-3.4-5-3.4-8S9.7 6.3 12 4z"/>',
@@ -287,9 +288,10 @@ function placeScene(el) {
   const k = Math.max(W / iw, F / ih) * 1.2, dw = iw * k, dh = ih * k;
   const left = Math.min(0, Math.max(W - dw, W / 2 - sc.at[0] * dw)), top = Math.min(0, Math.max(F - dh, F * 0.84 - sc.at[1] * dh));
   el.classList.add("photo-scene");
-  Object.assign(el.style, { backgroundImage: `linear-gradient(180deg, rgba(230,243,238,0) ${Math.round(F - 34)}px, #e6f3ee ${Math.round(F + 10)}px), url("${scenePhoto(sc)}")`,
+  const page = backdropOn() ? sc.tint : "#e6f3ee";
+  Object.assign(el.style, { backgroundImage: `linear-gradient(180deg, rgba(${rgbOf(page)},0) ${Math.round(F - 34)}px, ${page} ${Math.round(F + 10)}px), url("${scenePhoto(sc)}")`,
     backgroundSize: `100% 100%, ${dw}px ${dh}px`, backgroundPosition: `0 0, ${left}px ${top}px` });
-  if (sc.fx && !REDUCED_UI.matches && !el.querySelector(".scene-fx")) el.insertAdjacentHTML("beforeend", `<canvas class="scene-fx" data-fx="${sc.fx}" aria-hidden="true"></canvas>`);
+  if (sc.fx && S.sceneFx && !REDUCED_UI.matches && !el.querySelector(".scene-fx")) el.insertAdjacentHTML("beforeend", `<canvas class="scene-fx" data-fx="${sc.fx}" aria-hidden="true"></canvas>`);
   world.setAnchor({ x: left + sc.at[0] * dw, y: top + sc.at[1] * dh, h: sc.size * dh });
 }
 /* Drifting petals or snow over a scene that has them. */
@@ -298,19 +300,61 @@ const fxBits = [];
   requestAnimationFrame(sceneFx);
   const cv = document.querySelector(".scene-fx");
   if (!cv || document.hidden) return;
-  const W = cv.clientWidth, H = cv.clientHeight, d = Math.min(window.devicePixelRatio || 1, 2), snow = cv.dataset.fx === "snow", t = now / 1000;
+  const W = cv.clientWidth, H = cv.clientHeight, d = Math.min(window.devicePixelRatio || 1, 2), snow = cv.dataset.fx === "snow", rain = cv.dataset.fx === "rain", t = now / 1000;
   if (cv.width !== Math.round(W * d)) { cv.width = Math.round(W * d); cv.height = Math.round(H * d); }
   const c = cv.getContext("2d"); c.setTransform(d, 0, 0, d, 0, 0); c.clearRect(0, 0, W, H);
   while (fxBits.length < 34) fxBits.push({ x: Math.random(), y: Math.random(), s: .6 + Math.random() * .8, p: Math.random() * 9, r: Math.random() * 6 });
   for (const q of fxBits) {
-    q.y += (snow ? .0011 : .0008) * q.s; q.x += (snow ? 0 : .0006) + Math.sin(t * .8 + q.p) * .0007; q.r += .02;
-    if (q.y > 1.03) { q.y = -.03; q.x = Math.random(); } if (q.x > 1.03) q.x = -.03;
+    if (rain) { q.y += .011 * q.s; q.x -= .0011 * q.s; }
+    else { q.y += (snow ? .0011 : .0008) * q.s; q.x += (snow ? 0 : .0006) + Math.sin(t * .8 + q.p) * .0007; q.r += .02; }
+    if (q.y > 1.03) { q.y = -.03; q.x = Math.random(); } if (q.x > 1.03) q.x = -.03; if (q.x < -.03) q.x = 1.03;
     c.save(); c.translate(q.x * W, q.y * H);
-    if (snow) { c.fillStyle = `rgba(255,255,255,${.5 + .3 * q.s / 1.4})`; c.beginPath(); c.arc(0, 0, 1 + q.s * 1.3, 0, 7); c.fill(); }
+    if (rain) { c.strokeStyle = `rgba(236,243,250,${.28 + .22 * q.s / 1.4})`; c.lineWidth = 1; c.beginPath(); c.moveTo(0, 0); c.lineTo(-1.6 * q.s, 15 * q.s); c.stroke(); }
+    else if (snow) { c.fillStyle = `rgba(255,255,255,${.5 + .3 * q.s / 1.4})`; c.beginPath(); c.arc(0, 0, 1 + q.s * 1.3, 0, 7); c.fill(); }
     else { c.rotate(q.r); c.scale(1, .55 + .45 * Math.sin(t * 2 + q.p)); c.fillStyle = "rgba(255,196,214,.85)"; c.beginPath(); c.ellipse(0, 0, 3.6 * q.s, 2.4 * q.s, 0, 0, 7); c.fill(); }
     c.restore();
   }
 })(0);
+/* The chosen scene also sits behind every page, under a veil of its own soft colour so words stay easy to read. */
+const rgbOf = hex => [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16)).join(",");
+const backdropOn = () => !!(sceneNow() && S.sceneAll && S.member && !["onboard", "counselor"].includes(S.screen));
+let backdropFor = null;
+function applyBackdrop() {
+  const ph = document.querySelector("#phone"), bd = document.querySelector("#backdrop");
+  if (!ph || !bd) return;
+  const sc = backdropOn() ? sceneNow() : null;
+  ph.classList.toggle("has-scene", !!sc);
+  if (!sc) return;
+  ph.style.setProperty("--scene-tint", rgbOf(sc.tint));
+  ph.style.setProperty("--scene-veil", sc.dark ? ".9" : ".78");
+  bd.style.backgroundPosition = `${Math.round(sc.at[0] * 100)}% 50%`;
+  if (backdropFor === sc.id) return;
+  backdropFor = sc.id;
+  const url = scenePhoto(sc), img = new Image();
+  img.onload = () => { if (backdropFor === sc.id) bd.style.backgroundImage = `url("${url}")`; };
+  img.src = url;
+}
+const sceneCard = sc => { const on = S.scene === sc.id;
+  return `<button class="scene-card ${on ? "on" : ""} ${sc.photo ? "" : "live"}" data-a="scene" data-v="${sc.id}" aria-pressed="${on}" ${sc.photo ? `style="background-image:url('${scenePhoto(sc, 320)}')"` : ""}><span><b>${L(sc)}</b>${sc.photo ? "" : `<small>${t("scene_live")}</small>`}</span>${on ? `<i class="scene-tick" aria-hidden="true">${icon("check")}</i>` : ""}</button>`; };
+function settingsScreen() {
+  const cur = sceneNow(), sw = (k, label, sub, a = "flag") => `<label class="row"><span class="k">${label}${sub ? `<small>${sub}</small>` : ""}</span><input type="checkbox" class="switch" data-a="${a}" data-v="${k}" ${S[k] ? "checked" : ""}></label>`;
+  const grid = list => `<div class="scene-grid" role="group">${list.map(sceneCard).join("")}</div>`;
+  return `${hdrSub(t("settings"))}<div class="scroll" id="settingsScroll">
+    <h2 class="section-h">${t("bg_title")}</h2><p class="pad muted scene-sub">${t("bg_sub", { pet: esc(S.petName) })}</p>
+    <h3 class="scene-group">${t("bg_quiet")}</h3>${grid(SCENES.filter(s => !s.people))}
+    <h3 class="scene-group">${t("bg_people")}<small>${t("bg_people_sub")}</small></h3>${grid(SCENES.filter(s => s.people))}
+    ${cur ? `<p class="pad muted scene-credit">${t("scene_credit", { who: esc(cur.credit) })}</p>` : ""}
+    <div class="panel" style="padding:2px 14px;margin-top:14px">${sw("sceneAll", t("bg_everywhere"), t("bg_everywhere_sub"))}${sw("sceneFx", t("fx_on"), t("fx_sub"))}</div>
+    <h2 class="section-h">${t("sound_title")}</h2>
+    <div class="panel" style="padding:2px 14px">${sw("musicOn", t("music_on"), t("music_on_sub"), "musicFlag")}
+      <div class="row" style="flex-wrap:wrap"><span class="k" style="flex-basis:100%">${t("music_choice")}</span><div class="chips">${["piano", "ambient"].map(k => `<button class="chip ${S.musicKind === k ? "on" : ""}" data-a="musicKind" data-v="${k}" aria-pressed="${S.musicKind === k}">${t("music_" + k)}</button>`).join("")}</div></div>
+      <label class="row" for="music-volume"><span class="k">${t("care_volume")}</span><input id="music-volume" class="vol" type="range" min="0" max="100" value="${S.musicVol}" aria-label="${t("music_volume")}"></label>
+    </div><p class="pad muted" style="margin-top:0">${t("music_note")}</p></div>`;
+}
+function settingsLink() {
+  const sc = SCENES.find(s => s.id === S.scene) || SCENES[0];
+  return `<button class="panel activity-link settings-link" data-a="go" data-v="settings"><i class="settings-thumb ${sc.photo ? "" : "live"}" ${sc.photo ? `style="background-image:url('${scenePhoto(sc, 320)}')"` : ""} aria-hidden="true"></i><span><b>${t("settings")}</b><small>${t("settings_sub", { scene: L(sc), music: t(S.musicOn ? "on" : "off") })}</small></span>${icon("chev")}</button>`;
+}
 function scenePicker() {
   const card = sc => { const on = S.scene === sc.id;
     return `<button class="scene-card ${on ? "on" : ""} ${sc.photo ? "" : "live"}" data-a="scene" data-v="${sc.id}" aria-pressed="${on}" ${sc.photo ? `style="background-image:url('${scenePhoto(sc, 320)}')"` : ""}><span><b>${L(sc)}</b>${sc.people ? `<small>${t("scene_people")}</small>` : sc.photo ? "" : `<small>${t("scene_live")}</small>`}</span></button>`; };
@@ -335,7 +379,7 @@ function hdrSub(title) {
   return `<header class="hdr"><div class="hdr-row" style="padding-left:8px"><button class="back-btn" data-a="back" aria-label="${t("back")}: ${backLabel()}">${icon("back")}<span>${backLabel()}</span></button>
     <span class="hdr-title">${title}</span>${helpBtn()}</div></header>`;
 }
-const BACK_LABEL = { dailyDone: "daily_title", phqResult: "result_title", phqIntro: "mood_check", ask: "ask", friends: "friends_title", home: "home", circles: "circles", companion: "companion", me: "me", shop: "shop", learn: "learn", guide: "my_guide" };
+const BACK_LABEL = { settings: "settings", dailyDone: "daily_title", phqResult: "result_title", phqIntro: "mood_check", ask: "ask", friends: "friends_title", home: "home", circles: "circles", companion: "companion", me: "me", shop: "shop", learn: "learn", guide: "my_guide" };
 function backLabel() { const prev = S.stack[S.stack.length - 1]; const k = prev && BACK_LABEL[prev.screen]; return k ? t(k) : t("back"); }
 function tabs(active) {
   const tab = (id, ic, label) => `<button class="${active === id ? "on" : ""}" data-a="tab" data-v="${id}" ${active === id ? 'aria-current="page"' : ""}>${icon(ic)}<span>${label}</span></button>`;
@@ -1065,6 +1109,7 @@ function meScreen() {
     <div class="pad" style="display:flex;gap:14px;align-items:center"><span class="item" style="width:92px;height:92px;padding:4px;flex:none"><span class="art" style="width:100%">${thumb(S.species, S.wear.find(w => ["hat", "scarf"].includes(w)))}</span></span>
       <div><div style="font:600 var(--fs-l)/1.2 var(--display);color:var(--forest)">${esc(S.realName.trim() || t("not_set"))}</div><div class="muted">${t("community_sees", { who: esc(displayName() || t("anonymous")) })}</div><div class="muted">${esc(S.petName)} · ${L(species(S.species))}</div>
       <div class="muted" style="display:flex;gap:4px;align-items:center">${icon("star")}${focusName(S.mainFocus || "individual")}${S.focuses.length > 1 ? ` +${S.focuses.length - 1}` : ""}</div></div></div>
+    ${settingsLink()}
     <div class="panel" style="padding:2px 14px">
       <div class="row"><span class="k">${t("language")}</span><div class="chips">${[["en", "EN"], ["ht", "繁"], ["hs", "简"]].map(([l, n]) => `<button class="chip ${S.lang === l ? "on" : ""}" style="min-width:48px;justify-content:center" data-a="lang" data-v="${l}" aria-pressed="${S.lang === l}">${n}</button>`).join("")}</div></div>
       <div class="row" style="flex-wrap:wrap"><span class="k" style="flex-basis:100%">${t("location")}</span><div class="chips">${STATES.map(s => `<button class="chip ${S.state === s.id ? "on" : ""}" data-a="state" data-v="${s.id}" aria-pressed="${S.state === s.id}">${L(s)}</button>`).join("")}</div></div>
@@ -1146,13 +1191,13 @@ const APP_TOUR = [
   ["activity", "app_tour_activity", "app_tour_activity_body", ".streak-pair"],
   ["shop", "app_tour_shop", "app_tour_shop_body", ".grid2 .item"],
   ["me", "app_tour_profile", "app_tour_profile_body", ".tour-profile"],
-  ["home", "app_tour_music", "app_tour_music_body", ".music-controls"],
+  ["me", "app_tour_settings", "app_tour_settings_body", ".settings-link"],
 ];
 function appTourPanel() {
   const index = S.appTour, step = APP_TOUR[index];
   return `<div class="app-tour-overlay"><div class="app-tour-spotlight" aria-hidden="true"></div><section class="app-tour-card" role="dialog" aria-modal="true" aria-labelledby="app-tour-title" aria-describedby="app-tour-body">
     <div class="app-tour-top"><span>${t("app_tour_demo")}</span><span>${t("app_tour_step", {n:index + 1, total:APP_TOUR.length})}</span></div>
-    ${index === 0 ? homeLanguages() : ""}<h2 id="app-tour-title">${t(step[1])}</h2><p id="app-tour-body">${t(step[2])}</p>${step[1] === "app_tour_music" ? `<button class="btn quiet app-tour-music" data-a="music">${t(backgroundMusic ? "music_pause" : "music_play")}</button>` : ""}
+    ${index === 0 ? homeLanguages() : ""}<h2 id="app-tour-title">${t(step[1])}</h2><p id="app-tour-body">${t(step[2])}</p>
     <div class="app-tour-actions"><button class="app-tour-exit" data-a="appTourExit">${t("app_tour_skip")}</button>${index ? `<button class="btn quiet" data-a="appTourMove" data-v="-1">${t("app_tour_previous")}</button>` : ""}<button class="btn primary" data-a="appTourMove" data-v="1" data-autofocus>${t(index === APP_TOUR.length - 1 ? "app_tour_finish" : "app_tour_next")}</button></div>
   </section></div>`;
 }
@@ -1186,7 +1231,7 @@ function highlightAppTour() {
 /* ---------- render ---------- */
 function view() {
   if (S.screen === "onboard") return onboarding();
-  const map = { daily: dailyScreen, dailyDone, phqIntro, phq: phqScreen, phqResult, counselor: counselorWorkspace, ask: askScreen, friendDm, friends: friendsScreen, activity: activityScreen, home, compose, thread, guide, dm, companion: companionScreen, shop: shopScreen, circles: circlesScreen, circle: circleScreen, learn: learnScreen, practice: practiceScreen, me: meScreen };
+  const map = { daily: dailyScreen, dailyDone, phqIntro, phq: phqScreen, phqResult, counselor: counselorWorkspace, ask: askScreen, friendDm, friends: friendsScreen, activity: activityScreen, home, compose, thread, guide, dm, companion: companionScreen, shop: shopScreen, circles: circlesScreen, circle: circleScreen, learn: learnScreen, practice: practiceScreen, me: meScreen, settings: settingsScreen };
   return (map[S.screen] || home)();
 }
 let lastScreen = null, lastSheet = null;
@@ -1207,7 +1252,8 @@ function render(nav = false) {
   document.documentElement.dataset.lang = S.lang;
   document.documentElement.lang = S.lang === "en" ? "en" : zhTag();
   syncWorld();
-  let html = musicControls() + view();
+  applyBackdrop();
+  let html = view();
   if (DEMO && ["daily", "dailyDone", "phqIntro", "phq", "phqResult"].includes(S.screen)) html = testBar() + html;
   if (!landing() && S.screen !== "onboard" && !NO_TAB_BAR.includes(S.screen)) html += tabs(sectionTab());
   if (S.appTour !== null) html += appTourPanel();
@@ -1276,7 +1322,16 @@ const actions = {
   appTourExit() { S.appTour = null; S.screen = "home"; S.stack = []; render(true); document.querySelector('[data-a="appTourStart"]')?.focus(); },
   appTourMove(v) { const next = S.appTour + Number(v); if (next >= APP_TOUR.length) { actions.appTourExit(); return; } S.appTour = next; S.screen = APP_TOUR[next][0]; S.stack = []; render(true); },
   ...CHECKIN_ACTIONS,
-  music() { toggleBackgroundMusic(); },
+  music() { actions.musicFlag(null, { checked: !backgroundMusic }); },
+  // Music is the Member's choice: off until they turn it on, and it comes back with the app once they have.
+  async musicFlag(v, el) {
+    S.musicOn = el.checked;
+    if (S.musicOn === !!backgroundMusic) { render(); return; }
+    musicVolume = S.musicVol;
+    await toggleBackgroundMusic();
+    if (S.musicOn && !backgroundMusic) { S.musicOn = false; render(); }
+  },
+  musicKind(v) { if (!["piano", "ambient"].includes(v) || v === S.musicKind) return; S.musicKind = v; chooseBackgroundMusic(v); },
   scene(v) { if (!SCENES.some(s => s.id === v)) return; S.scene = v; render(); document.querySelector("#compScroll")?.scrollTo({ top: 0, behavior: REDUCED_UI.matches ? "auto" : "smooth" }); },
   postMenu(v) { S.menu = v; render(); },
   closeMenu() { S.menu = null; render(); },
@@ -1486,6 +1541,7 @@ document.addEventListener("click", e => {
 document.addEventListener("change", e => {
   const el = e.target;
   if (el.id === "music-choice") { chooseBackgroundMusic(el.value); return; }
+  if (el.id === "music-volume") { saveState(); return; }
   if (el.dataset.cwFilter) { CW[el.dataset.cwFilter] = el.value; render(); return; }
   if (el.dataset.libraryFilter) { S[el.dataset.libraryFilter] = el.value; $("#practice-results").innerHTML = practiceResults(); return; }
   if (el.matches("input[type=checkbox][data-a]")) actions[el.dataset.a](el.dataset.v, el);
@@ -1493,7 +1549,7 @@ document.addEventListener("change", e => {
 document.addEventListener("input", e => {
   const el = e.target;
   if (el.matches("[data-cw-draft]")) { CW.drafts[CW.selected] = el.value; document.querySelector('[data-a="cwReply"]').disabled = !el.value.trim(); return; }
-  if (el.id === "music-volume") { musicVolume = +el.value; if (backgroundMusic) backgroundMusic.master.gain.setTargetAtTime(musicVolume / 100 * .5, backgroundMusic.ctx.currentTime, .1); return; }
+  if (el.id === "music-volume") { musicVolume = S.musicVol = +el.value; if (backgroundMusic) backgroundMusic.master.gain.setTargetAtTime(musicVolume / 100 * .5, backgroundMusic.ctx.currentTime, .1); return; }
   if (el.id === "care-volume") { S.careVolume = +el.value; if (careAudio) careAudio.careGain.gain.setTargetAtTime(S.careVolume / 100 * .25, careAudio.currentTime, .1); return; }
   if (el.matches("[data-friend-draft]")) { S.friendDrafts[S.friendRecipient] = el.value; return; }
   const k = el.dataset && el.dataset.model; if (!k) return;
@@ -1530,6 +1586,10 @@ if (loadState()) {
   if (S.member) S.screen = "home";
   // A day or more away: the Companion naps and wakes glad to see the Member.
   if (S.member && S.activityDay && S.activityDay < shiftDay(dayKey(), -1)) S.away = true;
+  if (!SCENES.some(s => s.id === S.scene)) S.scene = "riverbank";
+  // Browsers only let sound start from a tap, so music the Member left on resumes at their first one.
+  musicVolume = S.musicVol; musicChoice = S.musicKind;
+  if (S.member && S.musicOn) startDefaultMusic();
 }
 /* Deep links for reviewing screens: ?skip=1, ?screen=…, ?lang=ht, ?step=2, ?loc=INTL, ?checkedin=1, ?mood=sad, ?match=k1, ?sheet=held, ?thread=p1, ?draft=…, ?time=22 */
 if (params.get("skip") === "1" || params.get("screen")) Object.assign(S, { member: true, joined: ["c1"], friendships: { kevin: "friend" }, realName: "Lily Zhang", nameShow: "initials", companionChosen: true, petName: "Pebble", screen: "home", age: true, terms: true, optMatch: true, focuses: ["parenting"], mainFocus: "parenting", state: "TX" });
@@ -1556,5 +1616,6 @@ initWorld();
 
 document.addEventListener("visibilitychange", () => { if (document.hidden && careAudio) { stopCareAudio(); render(); } });
 window.addEventListener("pagehide", stopCareAudio);
+document.addEventListener("visibilitychange", () => { if (!document.hidden && S.member && S.musicOn && !backgroundMusic) startDefaultMusic(); });
 window.addEventListener("resize", highlightAppTour);
 window.addEventListener("resize", mountStage);
