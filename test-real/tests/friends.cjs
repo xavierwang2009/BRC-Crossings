@@ -1,0 +1,17 @@
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const vm = require('node:vm');
+const app = fs.readFileSync(__dirname + '/../src/app.js','utf8');
+const S = {friendships:{}};
+const ctx = vm.createContext({S, MEMBERS:[{id:'kevin'},{id:'jenny'}]});
+vm.runInContext(app.split('/* ---------- friendship transitions ---------- */')[1].split('/* ---------- friends presentation ---------- */')[0],ctx);
+const change = ctx.changeFriendship;
+change('kevin','send'); assert.equal(S.friendships.kevin,'outgoing');
+change('kevin','send'); change('kevin','accept'); assert.equal(S.friendships.kevin,'outgoing');
+change('kevin','cancel'); assert.equal(S.friendships.kevin,undefined);
+S.friendships.jenny='incoming'; change('jenny','decline'); assert.equal(S.friendships.jenny,undefined);
+S.friendships.jenny='incoming'; change('jenny','accept'); assert.equal(S.friendships.jenny,'friend');
+change('jenny','send'); assert.equal(S.friendships.jenny,'friend');
+change('jenny','remove'); assert.equal(S.friendships.jenny,undefined);
+change('unknown','send'); assert.equal(S.friendships.unknown,undefined);
+console.log('Friendship checks passed: send, duplicate protection, cancel, accept, decline, remove, invalid transitions.');

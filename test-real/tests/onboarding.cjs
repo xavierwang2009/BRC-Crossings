@@ -1,0 +1,34 @@
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const vm = require('node:vm');
+const source = fs.readFileSync(__dirname + '/../src/app.js', 'utf8');
+const next = source.slice(source.indexOf('  next() {'), source.indexOf('  prev() {'));
+const fresh = live => vm.createContext({ LIVE: live, S: { step:5, companionChosen:true, petName:'Pebble', mainFocus:'parenting', screen:'onboard', stack:[{screen:'home'}], joined:[] }, world:null, render(){}, toast(){}, t:key=>key, suggestedCircles:()=>['c1'] });
+// Without the community, setup ends on the Member's own Home and joins no Circle.
+const ctx = fresh({ community:false, counselors:false });
+vm.runInContext('const actions = {' + next + '}; actions.next();',ctx);
+assert.equal(ctx.S.screen,'home','Setup ends on the Member Home while the community is off');
+assert.equal(ctx.S.member,true);
+assert.equal(ctx.S.stack.length,0);
+assert.equal(ctx.S.draftFocus,'parenting');
+assert.deepEqual(Array.from(ctx.S.joined),[],'No Circle is joined while there is no community');
+// With the community switched on, it opens Circles and joins the suggested one.
+const on = fresh({ community:true, counselors:true });
+vm.runInContext('const actions = {' + next + '}; actions.next();',on);
+assert.equal(on.S.screen,'circles');
+assert.deepEqual(Array.from(on.S.joined),['c1']);
+ctx.S.screen='onboard'; ctx.S.petName='';
+vm.runInContext('actions.next()',ctx);
+assert.equal(ctx.S.screen,'onboard');
+const prev = source.slice(source.indexOf('  prev() {'), source.indexOf('  getStarted() {'));
+const back = vm.createContext({ S: { step:1, screen:'onboard', stack:[{screen:'home'}] }, render(){} });
+vm.runInContext('function back() { const p = S.stack.pop() || { screen: "home" }; Object.assign(S, p); } const actions = {' + prev + '}; actions.prev();', back);
+assert.equal(back.S.screen,'home','Back from step 1 should return to Home when setup started there');
+back.S.screen='onboard'; back.S.step=1; back.S.stack=[];
+vm.runInContext('actions.prev()', back);
+assert.equal(back.S.screen,'onboard'); assert.equal(back.S.step,0,'With no earlier screen, step 1 steps back to step 0');
+back.S.step=3; back.S.stack=[{screen:'home'}];
+vm.runInContext('actions.prev()', back);
+assert.equal(back.S.step,2);
+assert.ok(!source.includes('  replay() {') && !source.includes('  signin() {'), 'No sample sign-in and no replay that could wipe a real Member');
+console.log('Onboarding: setup ends on Home with the community off and on Circles with it on; companion validation kept; back from step 1 returns to where setup began.');

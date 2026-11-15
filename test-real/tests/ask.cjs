@@ -1,0 +1,12 @@
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const vm = require('node:vm');
+const app = fs.readFileSync(__dirname + '/../src/app.js','utf8');
+const S = {friendRecipient:'jenny',friendships:{jenny:'friend',kevin:'outgoing',ana:'friend'},friendMessages:{},friendDrafts:{jenny:' Hello ',kevin:'Pending',ana:'Separate'}};
+const ctx=vm.createContext({S,render(){}});
+vm.runInContext('function sendFriendMessage()'+app.split('function sendFriendMessage()')[1].split('function compose()')[0],ctx);
+ctx.sendFriendMessage(); assert.deepEqual(Array.from(S.friendMessages.jenny),['Hello']); assert.equal(S.friendDrafts.jenny,'');
+S.friendRecipient='kevin';ctx.sendFriendMessage();assert.equal(S.friendMessages.kevin,undefined);
+S.friendRecipient='ana';ctx.sendFriendMessage();assert.deepEqual(Array.from(S.friendMessages.ana),['Separate']);assert.equal(S.friendMessages.jenny.length,1);
+ctx.sendFriendMessage(); assert.equal(S.friendMessages.ana.length,1);
+console.log('Ask checks passed: recipient isolation, pending friend blocked, empty message blocked, draft cleared.');

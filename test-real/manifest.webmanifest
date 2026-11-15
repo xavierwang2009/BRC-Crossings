@@ -1,0 +1,19 @@
+{
+  "id": "./",
+  "name": "BRC Crossings 同渡",
+  "short_name": "Crossings",
+  "description": "A daily check-in with your Companion, self-care practices and calm backgrounds, by Bridge River Counseling.",
+  "lang": "en",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#e6f3ee",
+  "theme_color": "#24452f",
+  "categories": ["health", "lifestyle"],
+  "icons": [
+    {"src": "assets/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any"},
+    {"src": "assets/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any"},
+    {"src": "assets/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable"}
+  ]
+}

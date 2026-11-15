@@ -1,0 +1,7 @@
+.glow-cursor__canvas {
+  position: fixed;
+  display: block;
+  z-index: 100;
+  pointer-events: none;
+  user-select: none;
+}
