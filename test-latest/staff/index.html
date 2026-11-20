@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="robots" content="noindex">
   <title>BRC Crossings · Staff preview</title>
-  <link rel="stylesheet" href="staff.css">
-  <script defer src="staff.js"></script>
+  <link rel="stylesheet" href="staff.css?v=2">
+  <script defer src="staff.js?v=2"></script>
 </head>
 <body>
   <header>
@@ -16,5 +16,12 @@
     </div>
   </header>
   <main id="app"></main>
+  <dialog id="resolve-dialog" aria-labelledby="resolve-title">
+    <h2 id="resolve-title"></h2>
+    <form method="dialog">
+      <button class="secondary" value="edit" autofocus></button>
+      <button class="primary" value="save"></button>
+    </form>
+  </dialog>
   <div id="feedback" class="sr" role="status"></div>
 </body></html>
