@@ -2117,6 +2117,32 @@ Object.assign(I18N, {
   app_tour_settings: { en: "Make it yours", ht: "佈置成你喜歡的樣子", hs: "布置成你喜欢的样子" },
   app_tour_settings_body: { en: "In Me, open Settings to choose a background for the whole app, from quiet places to streets with people around, and to turn soft music on or off.", ht: "在「我」打開「設定」，為整個 App 選一個背景，從安靜的地方到有人來往的街道，也可以開關輕柔的音樂。", hs: "在「我」打开「设置」，为整个 App 选一个背景，从安静的地方到有人来往的街道，也可以开关轻柔的音乐。" },
 });
+// Shared by the staff editor and member guide directory in this browser.
+const StaffProfile = (() => {
+  const key = 'brc-crossings:staff-preview:joel';
+  const languages = {
+    en:['English','英語','英语'], cmn:['Mandarin','國語（普通話）','普通话'], yue:['Cantonese','粵語','粤语'],
+    es:['Spanish','西班牙語','西班牙语'], ko:['Korean','韓語','韩语'], vi:['Vietnamese','越南語','越南语'],
+    fr:['French','法語','法语'], ja:['Japanese','日語','日语'], hi:['Hindi','印地語','印地语'], ar:['Arabic','阿拉伯語','阿拉伯语']
+  };
+  function read(){
+    let value;
+    try { value=JSON.parse(localStorage.getItem(key)); } catch {}
+    return {
+      photo: typeof value?.photo==='string' && /^data:image\/jpeg;base64,[A-Za-z0-9+/=]+$/.test(value.photo) ? value.photo : '',
+      languages:Object.keys(languages).filter(id=>Array.isArray(value?.languages) && value.languages.includes(id))
+    };
+  }
+  function label(words,lang){return words[{en:0,ht:1,hs:2}[lang]];}
+  function languageText(profile,lang){
+    return profile.languages.map(id=>label(languages[id],lang)).join(' · ') ||
+      label(['Languages not listed','尚未列出服務語言','尚未列出服务语言'],lang);
+  }
+  function avatar(profile){
+    return profile.photo ? '<img alt="" width="44" height="44" style="border-radius:50%;object-fit:cover" src="'+profile.photo+'">' : '<span class="avatar av" aria-hidden="true">JQ</span>';
+  }
+  return {key,languages,read,label,languageText,avatar};
+})();
 /* Test build: copy for the daily check-in and the voluntary mood screening (EN / 繁 / 简).
    PHQ below is verbatim from the published forms on phqscreeners.com:
    PHQ-9 English, Traditional Chinese for Taiwan, Simplified Chinese for Mainland China.
@@ -4857,9 +4883,11 @@ function guide() {
     return `${hdrSub(t("my_guide"))}<div class="scroll"><div style="height:14px"></div><div class="notice"><h3>${t("matching_off_title")}</h3><p>${t("matching_why")}</p>
       <button class="btn primary" data-a="flagOn" data-v="optMatch">${t("matching_on")}</button></div></div>`;
   }
+  const staffProfile = StaffProfile.read();
   const list = suggestions(), cur = S.match ? counselor(S.match) : null;
   return `${hdrSub(t("my_guide"))}<div class="scroll"><p class="pad" style="margin:0;color:var(--ink-2)">${t("guide_intro")}</p>
     <div class="pad" style="padding-top:0"><button class="chip ${wantsZh() ? "on" : ""}" data-a="guideZh" aria-pressed="${wantsZh()}">${wantsZh() ? icon("check") : ""}${t("guide_zh")}</button></div>
+    <article class="panel cc"><div class="cc-top">${StaffProfile.avatar(staffProfile)}<div><div class="nm">Joel Qiao</div><div class="meta">${StaffProfile.languageText(staffProfile,S.lang)}</div></div></div><p>${L({en:"Clinic counselor · Profile preview",ht:"診所輔導師 · 個人檔案預覽",hs:"诊所咨询师 · 个人资料预览"})}</p></article>
     ${cur ? guideCard() : ""}
     ${list.length ? list.map(c => `<article class="panel cc"><div class="cc-top"><span class="av" style="background:${c.hue};width:48px;height:48px">${initials(c.name)}</span><div><div class="nm">${esc(c.name)}</div><div class="meta">${guideLanguages(c)} · ${t("licensed_in", { s: c.states.join(", ") })}</div></div></div>
       <p>${L(c.bio)}</p>${c.approaches && c.approaches.length ? `<p class="approaches">${t("guide_approaches")}: ${c.approaches.map(id => `<span class="kind-chip kind-${id}">${L(supportKind(id))}</span>`).join("")}</p>` : ""}${S.match === c.id ? `<span class="tag answer">${icon("check")}${t("my_guide")}</span>` : `<button class="btn quiet block" data-a="match" data-v="${c.id}">${t("choose_guide")}</button>`}</article>`).join("")
@@ -5615,6 +5643,8 @@ window.addEventListener("pagehide", stopCareAudio);
 document.addEventListener("visibilitychange", () => { if (!document.hidden && S.member && S.musicOn && !backgroundMusic) startDefaultMusic(); });
 window.addEventListener("resize", highlightAppTour);
 window.addEventListener("resize", mountStage);
+
+window.addEventListener('storage',e=>{if(e.key===StaffProfile.key && S.screen==='guide') render();});
 
 /* TargetCursor adapted from the user-supplied React Bits component.
    License: assets/licenses/react-bits-LICENSE.md. Opt-in preview only. */

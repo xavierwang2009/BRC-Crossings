@@ -2,7 +2,7 @@
 const strings = {
   questions:['Questions','問題','问题'], saved:['Reply saved','回覆已儲存','回复已保存'],
   preview:['Staff preview','員工體驗版','员工体验版'],
-  notice:['Use sample text only. Refresh clears this tab’s changes.','請只輸入示範文字。重新整理會清除此分頁的變更。','请只输入示例文字。刷新会清除此标签页的更改。'],
+  notice:['Use sample text only. Refresh resets the queue.','請只輸入示範文字。重新整理會重設問題清單。','请只输入示例文字。刷新会重置问题列表。'],
   admin:['Clinic coordinator','診所管理員','诊所管理员'], counselor:['Counselor','輔導師','咨询师'],
   roles:['Workspace','工作區','工作区'], queue:['Assignment queue','問題分配','问题分配'], inbox:['My inbox','我的收件匣','我的收件箱'],
   parenting:['Parenting','親職','育儿'], stress:['Work stress','工作壓力','工作压力'],
@@ -44,7 +44,9 @@ function details(q) {
     const form = q.resolved ? '' : '<form><label for="draft">'+copy('respond')+'</label><textarea id="draft" required>'+esc(q.draft)+'</textarea><button class="primary" type="submit" '+(q.draft.trim()?'':'disabled')+'>'+copy('save')+'</button></form>';
     controls = form+'<div><button class="secondary" data-action="resolve">'+copy(q.resolved?'reopen':'resolve')+'</button></div>';
   }
-  return '<article class="panel detail" aria-label="'+copy('detail')+'"><div class="topic">'+copy(q.topic)+'</div><h2>'+copy(q.question)+'</h2><div class="metadata">'+badge(q)+(q.assigned?' · Joel Qiao':'')+'</div>'+replyList+(controls?'<div class="actions">'+controls+'</div>':'')+'</article>';
+  const profile=StaffProfile.read();
+  const assignee=role==='admin' ? '<div class="counselor-summary">'+StaffProfile.avatar(profile)+'<div><strong>Joel Qiao</strong><br>'+profileText('langs')+' · '+StaffProfile.languageText(profile,language)+'</div></div>' : '';
+  return '<article class="panel detail" aria-label="'+copy('detail')+'"><div class="topic">'+copy(q.topic)+'</div><h2>'+copy(q.question)+'</h2><div class="metadata">'+badge(q)+(q.assigned && role==='counselor'?' · Joel Qiao':'')+'</div>'+assignee+replyList+(controls?'<div class="actions">'+controls+'</div>':'')+'</article>';
 }
 function badge(q) {
   return '<span class="badge '+status(q)+'">'+copy(status(q))+'</span>';
@@ -57,7 +59,7 @@ function render() {
   selected = current?.id;
   const roles = ['admin','counselor'].map(r=>'<button data-role="'+r+'" aria-pressed="'+(r===role)+'">'+copy(r)+'</button>').join('');
   const rows = visible.map(q=>'<button class="row" data-id="'+q.id+'" aria-pressed="'+(q===current)+'"><span class="row-title">'+copy(q.topic)+'</span>'+badge(q)+'<span class="snippet">'+copy(q.question)+'</span></button>').join('');
-  app.innerHTML = '<aside><div class="identity"><span class="avatar" aria-hidden="true">JQ</span><div><strong>Joel Qiao</strong><small>info@bridgerivercounseling.com</small></div></div><nav aria-label="'+copy('roles')+'">'+roles+'</nav></aside>'+
+  app.innerHTML = '<aside><div class="identity">'+StaffProfile.avatar(StaffProfile.read())+'<div><strong>Joel Qiao</strong><small>info@bridgerivercounseling.com</small></div>'+(role==='counselor'?'<button class="profile-link" data-action="profile">'+profileText('profile')+'</button>':'')+'</div><nav aria-label="'+copy('roles')+'">'+roles+'</nav></aside>'+
     '<section class="workspace"><div class="workspace-head"><h1>'+copy(role==='admin'?'queue':'inbox')+'</h1><button class="restart" data-action="reset">'+copy('reset')+'</button></div>'+
     '<div class="notice"><div><strong>'+copy('preview')+'</strong><p>'+copy('notice')+'</p></div></div>'+
     '<div class="layout"><section class="panel queue"><h2>'+copy('questions')+' <span class="count">'+visible.length+'</span></h2>'+(rows||'<p class="empty">'+copy('empty')+'</p>')+'</section>'+(current?details(current):'')+'</div></section>';
@@ -99,6 +101,7 @@ app.addEventListener('click',e=>{
   const button=e.target.closest('button');
   if(!button||button.type==='submit'&&button.form) return;
   const q=questions.find(q=>q.id===selected);
+  if(button.dataset.action==='profile'){openProfile();return;}
   if(button.dataset.role) role=button.dataset.role;
   if(button.dataset.id) selected=button.dataset.id;
   if(button.dataset.action==='assign'&&role==='admin'&&q&&!q.resolved) q.assigned=!q.assigned;
@@ -123,3 +126,5 @@ app.addEventListener('click',e=>{
   if(button.dataset.id) app.querySelector('[data-id="'+selected+'"]').focus();
 });
 render();
+
+window.addEventListener('storage',e=>{if(e.key===StaffProfile.key && !profileDialog.open) render();});

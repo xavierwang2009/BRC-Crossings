@@ -18,6 +18,7 @@ for image_name in ("home-community", "home-counselor", "home-friends", "home-com
     feature_image = base64.b64encode((root / "assets" / f"{image_name}.jpg").read_bytes()).decode()
     css = css.replace(f'url("assets/{image_name}.jpg")', f'url("data:image/jpeg;base64,{feature_image}")')
 content = (src / "content.js").read_text(encoding="utf-8")
+content += (src / "staff-profile.js").read_text(encoding="utf-8")
 content += (src / "checkin-content.js").read_text(encoding="utf-8")
 music = (src / "music.js").read_text(encoding="utf-8")
 app = (src / "checkin.js").read_text(encoding="utf-8") + (src / "app.js").read_text(encoding="utf-8")

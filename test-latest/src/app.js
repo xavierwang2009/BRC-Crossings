@@ -906,9 +906,11 @@ function guide() {
     return `${hdrSub(t("my_guide"))}<div class="scroll"><div style="height:14px"></div><div class="notice"><h3>${t("matching_off_title")}</h3><p>${t("matching_why")}</p>
       <button class="btn primary" data-a="flagOn" data-v="optMatch">${t("matching_on")}</button></div></div>`;
   }
+  const staffProfile = StaffProfile.read();
   const list = suggestions(), cur = S.match ? counselor(S.match) : null;
   return `${hdrSub(t("my_guide"))}<div class="scroll"><p class="pad" style="margin:0;color:var(--ink-2)">${t("guide_intro")}</p>
     <div class="pad" style="padding-top:0"><button class="chip ${wantsZh() ? "on" : ""}" data-a="guideZh" aria-pressed="${wantsZh()}">${wantsZh() ? icon("check") : ""}${t("guide_zh")}</button></div>
+    <article class="panel cc"><div class="cc-top">${StaffProfile.avatar(staffProfile)}<div><div class="nm">Joel Qiao</div><div class="meta">${StaffProfile.languageText(staffProfile,S.lang)}</div></div></div><p>${L({en:"Clinic counselor · Profile preview",ht:"診所輔導師 · 個人檔案預覽",hs:"诊所咨询师 · 个人资料预览"})}</p></article>
     ${cur ? guideCard() : ""}
     ${list.length ? list.map(c => `<article class="panel cc"><div class="cc-top"><span class="av" style="background:${c.hue};width:48px;height:48px">${initials(c.name)}</span><div><div class="nm">${esc(c.name)}</div><div class="meta">${guideLanguages(c)} · ${t("licensed_in", { s: c.states.join(", ") })}</div></div></div>
       <p>${L(c.bio)}</p>${c.approaches && c.approaches.length ? `<p class="approaches">${t("guide_approaches")}: ${c.approaches.map(id => `<span class="kind-chip kind-${id}">${L(supportKind(id))}</span>`).join("")}</p>` : ""}${S.match === c.id ? `<span class="tag answer">${icon("check")}${t("my_guide")}</span>` : `<button class="btn quiet block" data-a="match" data-v="${c.id}">${t("choose_guide")}</button>`}</article>`).join("")
@@ -1664,3 +1666,5 @@ window.addEventListener("pagehide", stopCareAudio);
 document.addEventListener("visibilitychange", () => { if (!document.hidden && S.member && S.musicOn && !backgroundMusic) startDefaultMusic(); });
 window.addEventListener("resize", highlightAppTour);
 window.addEventListener("resize", mountStage);
+
+window.addEventListener('storage',e=>{if(e.key===StaffProfile.key && S.screen==='guide') render();});

@@ -5,8 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="robots" content="noindex">
   <title>BRC Crossings · Staff preview</title>
-  <link rel="stylesheet" href="staff.css?v=2">
-  <script defer src="staff.js?v=2"></script>
+  <link rel="stylesheet" href="staff.css?v=3">
+  <script defer src="../src/staff-profile.js?v=1"></script>
+  <script defer src="profile-editor.js?v=1"></script>
+  <script defer src="staff.js?v=3"></script>
 </head>
 <body>
   <header>
@@ -16,6 +18,7 @@
     </div>
   </header>
   <main id="app"></main>
+  <dialog id="profile-dialog" aria-labelledby="profile-title"><form></form></dialog>
   <dialog id="resolve-dialog" aria-labelledby="resolve-title">
     <h2 id="resolve-title"></h2>
     <form method="dialog">
