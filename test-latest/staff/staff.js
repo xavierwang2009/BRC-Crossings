@@ -1,5 +1,6 @@
 /* Public, fictional staff workflow. All changes live in this tab's memory. */
 const strings = {
+  questions:['Questions','問題','问题'], saved:['Reply saved','回覆已儲存','回复已保存'],
   preview:['Staff preview','員工體驗版','员工体验版'],
   notice:['Public demo using fictional questions. Use sample text only. Replies stay in this tab and clear on refresh.','公開體驗版使用虛構問題。請只輸入示範文字。回覆只保留於此分頁，重新整理後會清除。','公开体验版使用虚构问题。请只输入示例文字。回复只保留在此标签页，刷新后会清除。'],
   admin:['Clinic coordinator','診所管理員','诊所管理员'], counselor:['Counselor','輔導師','咨询师'],
@@ -35,12 +36,15 @@ function details(q) {
   const replyList = q.replies.length ? '<h3>'+copy('responses')+'</h3>'+q.replies.map(r=>'<p class="reply">'+esc(r)+'</p>').join('') : '';
   let controls;
   if (role === 'admin') {
-    controls = q.resolved ? '' : '<button data-action="assign">'+copy(q.assigned?'release':'assign')+'</button>';
+    controls = q.resolved ? '' : '<button class="primary" data-action="assign">'+copy(q.assigned?'release':'assign')+'</button>';
   } else {
     const form = q.resolved ? '' : '<form><label for="draft">'+copy('respond')+'</label><textarea id="draft" required>'+esc(q.draft)+'</textarea><button class="primary" type="submit" '+(q.draft.trim()?'':'disabled')+'>'+copy('save')+'</button></form>';
-    controls = form+'<div class="actions"><button data-action="resolve">'+copy(q.resolved?'reopen':'resolve')+'</button></div>';
+    controls = form+'<div><button class="secondary" data-action="resolve">'+copy(q.resolved?'reopen':'resolve')+'</button></div>';
   }
-  return '<section class="panel" aria-label="'+copy('detail')+'"><small>'+copy(q.topic)+'</small><h2>'+copy(q.question)+'</h2><p class="meta">'+copy(status(q))+(q.assigned?' · Joel Qiao':'')+'</p>'+replyList+'<div>'+controls+'</div></section>';
+  return '<article class="panel detail" aria-label="'+copy('detail')+'"><div class="topic">'+copy(q.topic)+'</div><h2>'+copy(q.question)+'</h2><div class="metadata">'+badge(q)+(q.assigned?' · Joel Qiao':'')+'</div>'+replyList+(controls?'<div class="actions">'+controls+'</div>':'')+'</article>';
+}
+function badge(q) {
+  return '<span class="badge '+status(q)+'">'+copy(status(q))+'</span>';
 }
 function render() {
   document.documentElement.lang = {en:'en',ht:'zh-Hant',hs:'zh-Hans'}[language];
@@ -49,8 +53,11 @@ function render() {
   const current = visible.find(q=>q.id===selected)||visible[0];
   selected = current?.id;
   const roles = ['admin','counselor'].map(r=>'<button data-role="'+r+'" aria-pressed="'+(r===role)+'">'+copy(r)+'</button>').join('');
-  const rows = visible.map(q=>'<button class="row" data-id="'+q.id+'" aria-pressed="'+(q===current)+'"><strong>'+copy(q.topic)+'</strong><small>'+copy(status(q))+(q.assigned?' · Joel Qiao':'')+'</small></button>').join('');
-  app.innerHTML = '<div class="identity"><strong>Joel Qiao</strong><p>info@bridgerivercounseling.com</p></div><nav aria-label="'+copy('roles')+'">'+roles+'</nav><p class="notice"><b>'+copy('preview')+'</b> · '+copy('notice')+'</p><h1>'+copy(role==='admin'?'queue':'inbox')+'</h1><div class="layout"><section class="panel">'+(rows||copy('empty'))+'</section>'+(current?details(current):'')+'</div><footer><button data-action="reset">'+copy('reset')+'</button></footer>';
+  const rows = visible.map(q=>'<button class="row" data-id="'+q.id+'" aria-pressed="'+(q===current)+'"><span class="row-title">'+copy(q.topic)+'</span>'+badge(q)+'<span class="snippet">'+copy(q.question)+'</span></button>').join('');
+  app.innerHTML = '<aside><div class="identity"><span class="avatar" aria-hidden="true">JQ</span><div><strong>Joel Qiao</strong><small>info@bridgerivercounseling.com</small></div></div><nav aria-label="'+copy('roles')+'">'+roles+'</nav></aside>'+
+    '<section class="workspace"><div class="workspace-head"><h1>'+copy(role==='admin'?'queue':'inbox')+'</h1><button class="restart" data-action="reset">'+copy('reset')+'</button></div>'+
+    '<div class="notice"><div><strong>'+copy('preview')+'</strong><p>'+copy('notice')+'</p></div></div>'+
+    '<div class="layout"><section class="panel queue"><h2>'+copy('questions')+' <span class="count">'+visible.length+'</span></h2>'+(rows||'<p class="empty">'+copy('empty')+'</p>')+'</section>'+(current?details(current):'')+'</div></section>';
 }
 const langSelect=document.querySelector('#lang');
 langSelect.value=language;
@@ -65,6 +72,8 @@ app.addEventListener('submit',e=>{
   const q=questions.find(q=>q.id===selected);
   if(role!=='counselor'||!q?.assigned||q.resolved||!q.draft.trim()) return;
   q.replies.push(q.draft.trim());q.draft='';render();
+  document.querySelector('#feedback').textContent=copy('saved');
+  app.querySelector('#draft').focus();
 });
 app.addEventListener('click',e=>{
   const button=e.target.closest('button');
@@ -79,6 +88,7 @@ app.addEventListener('click',e=>{
     questions=samples();selected=null;
   }
   render();
+  if(button.dataset.action) app.querySelector('[data-action="'+button.dataset.action+'"]')?.focus();
   if(button.dataset.role) app.querySelector('[data-role="'+role+'"]').focus();
   if(button.dataset.id) app.querySelector('[data-id="'+selected+'"]').focus();
 });
