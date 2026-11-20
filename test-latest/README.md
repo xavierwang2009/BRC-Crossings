@@ -1,6 +1,6 @@
 # BRC Crossings 同渡
 
-A clickable prototype of the community app for Bridge River Counseling (Dallas & Frisco): peer support, answers from licensed Counselors, a Counselor guide, and a daily check-in with a living 3D Companion. Works in English, 繁體中文 and 简体中文.
+A clickable prototype of the community app for Bridge River Counseling (Dallas & Frisco): peer support, fictional counselor conversations, a sample guide, and a daily check-in with a living 3D Companion. Works in English, 繁體中文 and 简体中文.
 
 ## Quick start
 
@@ -19,7 +19,9 @@ Jump straight to a screen:
 
 Things to try:
 
-- Tap, stroke or press and hold the Companion.
+- Select a language on Home. Sample posts, replies and the counselor workspace follow that choice. Text typed by a tester retains its original wording.
+- Choose a pet during setup or switch animals under **Companion → Change companion**.
+- On a shared browser, use **Me → Start fresh for the next tester** to clear the current tester’s entries before handing over the device.
 - Pick a mood and check in; the weather and the Companion change with it.
 - The diorama follows your real clock. On a computer, the panel beside the phone previews morning, day, dusk and night.
 
@@ -59,42 +61,42 @@ python3 build.py
 
 Open `?screen=activity`, or choose **My activity** in Companion or Me. A completed mood check-in counts once per local calendar day. Editing the same day replaces that mood and gives no extra check-in seeds. Current streak includes yesterday until today ends; missing a full day resets the current streak, while the longest streak remains. Goals: 7, 14, 30 or 50 days. The weekly view uses categorical moods, leaves missed days blank, and shows a distribution and dated history.
 
-History stays in memory and clears on refresh. **Load a sample week** adds explicitly illustrative past entries without replacing current entries. No mood is transmitted or monitored by clinic staff.
+The main prototype saves history in this browser. Review links with query parameters use temporary data that clears on refresh. **Load a sample week** adds explicitly illustrative past entries without replacing current entries. No mood is transmitted or monitored by clinic staff.
 
 Run date/streak checks with `node tests/activity.cjs`.
 
 ### Practice library preview
 
-Open `?screen=learn`, or Practice library from Home or Me. Six sample practices support English, Traditional Chinese, and Simplified Chinese. Search and topic/duration/language filters combine; selecting a resource language also changes the practice text. Open a card for its steps, or save/remove it in the Saved view. Saves and filters remain during navigation but clear on refresh. Content is prototype copy, not counselor-reviewed. Run `node tests/library.cjs` for filtering checks.
+Open `?screen=learn`, or Practice library from Home or Me. Six sample practices support English, Traditional Chinese, and Simplified Chinese. Search and topic/duration/language filters combine; selecting a resource language also changes the practice text. Open a card for its steps, or save/remove it in the Saved view. On the main link, saved practices survive refresh and search filters reset. Content is prototype copy, not counselor-reviewed. Run `node tests/library.cjs` for filtering checks.
 
 ### Friends preview
 
-Open `?screen=friends` or Me → Friends. Named sample posts offer Add friend; anonymous posts do not expose identity or friend actions. Requests remain pending until accepted. Friends has incoming requests, sent requests with cancellation, and accepted friends with removal. Preview an incoming request adds a fictional request from Jenny H. All relationships are session-only; no requests reach real people. Run `node tests/friends.cjs`.
+Open `?screen=friends` or Me → Friends. Named sample posts offer Add friend; anonymous posts do not expose identity or friend actions. Requests remain pending until accepted. Friends has incoming requests, sent requests with cancellation, and accepted friends with removal. Preview an incoming request adds a fictional request from Jenny H. The main link saves these sample relationships in the browser. Requests never reach real people. Run `node tests/friends.cjs`.
 
 ### Ask destinations
 
-Ask and the Home prompt open a destination chooser (`?screen=ask`): counselor (existing guide or matching), community (named/anonymous post), or one accepted friend. Pending requests are excluded. Friend drafts and messages are separated by member ID and stay in memory; messages are explicitly not delivered.
+Ask and the Home prompt open a destination chooser (`?screen=ask`): counselor (existing guide or matching), community (named/anonymous post), or one accepted friend. Pending requests are excluded. Friend drafts and messages are separated by member ID. Drafts are temporary. The main link saves messages in this browser without delivering them.
 
 ### After a mood check-in
 
-Companion offers breathing, generated ambient tones/rain/waves, session-only private journaling, and quiet company. Good/Great moods also offer celebration, saving a good moment, savoring, sharing a community/friend draft, and thanking an accepted friend. Sharing never copies private journal text or sends automatically. Audio is tap-to-play with volume/stop; it stops when leaving Companion, changing activities, or hiding the page. All journal entries clear on refresh. Preview `?screen=companion&checkedin=1&mood=good` (or `mood=low`).
+Companion offers breathing, generated ambient tones/rain/waves, private journaling, and quiet company. Good/Great moods also offer celebration, saving a good moment, savoring, sharing a community/friend draft, and thanking an accepted friend. Sharing never copies private journal text or sends automatically. Audio is tap-to-play with volume/stop; it stops when leaving Companion, changing activities, or hiding the page. On the main link, saved journal entries survive refresh. Preview `?screen=companion&checkedin=1&mood=good` (or `mood=low`).
 
 ### Counselor workspace preview
 
-Open `?screen=counselor` or Me → Preview counselor workspace. This separate English-language demo contains an assigned-member inbox, community questions with topic/language filters, member visibility examples, and profile/availability settings. Replies, flags, resolution state and settings are simulated in memory and clear on refresh. No clinic staff are notified. It uses isolated fictional data and never reads member journal entries or resolves anonymous identities. Clinic invitation, credential verification and production access control are described but not implemented.
+Open `?screen=counselor` or Me → Preview counselor workspace. This demo follows the member’s language and contains an assigned-member inbox, community questions with topic/language filters, member visibility examples, and profile/availability settings. Replies, flags, resolution state and settings are simulated in memory and clear on refresh. No clinic staff are notified. It uses isolated fictional data and never reads member journal entries or resolves anonymous identities. Clinic invitation, credential verification and production access control are described but not implemented.
 
 ### Member Home
 
-Once someone signs in or finishes setup, Home is their own page and the public welcome page no longer appears. Open `?skip=1`, or sign in and choose Home. It shows a greeting, today's check-in with the Companion, the ask field and the Counselor guide, then: **New for you** (a new Counselor answer, the Member's own posts), **From your friends** (friends' named posts), **Your friends replied** (friends' named replies), **From your Circles**, and **More from the community**. Each post shows once.
+Once someone chooses the sample member or finishes setup, Home is their own page and the public welcome page no longer appears. Open `?skip=1`, or explore as a sample member and choose Home. It shows a greeting, today's check-in with the Companion, the ask field and the Counselor guide, then: **New for you** (a new Counselor answer, the Member's own posts), **From your friends** (friends' named posts), **Your friends replied** (friends' named replies), **From your Circles**, and **More from the community**. Each post shows once.
 
 Anonymous posts and replies never show who wrote them. Friends' Helpful taps are not shown, because Members have not agreed to share them. The sample account starts with Kevin W. as a friend; a new sign-up starts with none. Run `node tests/home.cjs`.
 
 ### Home feature orbit (visitors)
 
-Home (`?screen=home`) replaces the pet/riverbank hero with an adult editorial feature introduction. Four distinct generated images introduce Community, Counselor guidance, Friends, and Companion. The description slides to match the frontmost image during automatic rotation, dragging, and photo/dot or previous/next selection. Get started opens setup with empty profile fields and unchecked consents; Sign in opens the sample member experience. Motion pauses on hover/focus, supports manual pause and swipe, respects reduced motion, and is cleaned up on navigation. The pet remains on Companion and the setup picker.
+Home (`?screen=home`) replaces the pet/riverbank hero with an adult editorial feature introduction. Four distinct generated images introduce Community, Counselor guidance, Friends, and Companion. The description slides to match the frontmost image during automatic rotation, dragging, and photo/dot or previous/next selection. Get started opens setup with empty profile fields and unchecked consents; Explore as a sample member opens Lily’s profile. Motion pauses on hover/focus, supports manual pause and swipe, respects reduced motion, and is cleaned up on navigation. The pet remains on Companion and the setup picker.
 
 `src/orbit.js` adapts the non-React engine from the user-supplied React Bits OrbitImages source, created by Dominik Koch (https://x.com/dominikkoch). React Bits copyright/license is retained in source and `assets/licenses/react-bits-LICENSE.md`. The Community photo uses the generated group image in `assets/home-community.png`. Friends, Counselor, and Companion use separate generated images in `assets/home-friends.png`, `assets/home-counselor.png`, and `assets/home-companion.png`. People are fictional illustrations, not actual members or counselors; the otter illustrates a selectable pet, not an adopted pet. The exact built-in generation prompts are saved in `assets/home-image-prompts.md` (Counselor and Companion) and `assets/home-image-prompts-v3.md` (current diverse Community and Friends images). The build embeds these images and orbit code into index.html.
 
 ### Home button borders
 
-Get started and Sign in adapt the user-supplied React Bits StarBorder canvas engine in `src/starborder.js`, without React or extra dependencies. Existing button actions and colors are retained. Border motion pauses with Home rotation, respects reduced motion, suspends while the page is hidden, and cleans up on navigation. License retained in source and `assets/licenses/react-bits-LICENSE.md`. Run `node tests/starborder.cjs` for drawing and lifecycle checks.
+Get started and Explore as a sample member adapt the user-supplied React Bits StarBorder canvas engine in `src/starborder.js`, without React or extra dependencies. Existing button actions and colors are retained. Border motion pauses with Home rotation, respects reduced motion, suspends while the page is hidden, and cleans up on navigation. License retained in source and `assets/licenses/react-bits-LICENSE.md`. Run `node tests/starborder.cjs` for drawing and lifecycle checks.

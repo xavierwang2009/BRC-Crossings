@@ -58,11 +58,11 @@ html = f"""<!doctype html>
   <div id="app"></div>
 </div></div>
 <aside class="notes" aria-label="Prototype notes">
-  <h1 class="ttl">BRC Crossings prototype, v2 (Riverbank)</h1>
+  <h1 class="ttl" data-copy="notes_title">BRC Crossings prototype, v2 (Riverbank)</h1>
   <div class="card"><div class="scr" id="screenName"></div><ul id="screenNotes"></ul></div>
-  <div class="card"><div class="scr">Diorama time</div><div>The diorama follows your clock. Preview other times:</div><div class="times" id="times"></div></div>
-  <div class="card"><details><summary>Prototype state</summary><pre id="stateDump"></pre></details></div>
-  <div class="card" style="font-size:12px;color:#4d5f53">All people, posts and Counselor names are fictional samples. Logo from bridgerivercounseling.com until official files arrive. The Chinese-language crisis line stays hidden until a partner is confirmed.</div>
+  <div class="card"><div class="scr" data-copy="notes_time">Diorama time</div><div data-copy="notes_clock">The diorama follows your clock. Preview other times:</div><div class="times" id="times"></div></div>
+  <div class="card"><details><summary data-copy="notes_state">Prototype state</summary><pre id="stateDump"></pre></details></div>
+  <div class="card" style="font-size:12px;color:#4d5f53" data-copy="notes_footer">All people, posts and Counselor names are fictional samples. Logo from bridgerivercounseling.com until official files arrive. The Chinese-language crisis line stays hidden until a partner is confirmed.</div>
 </aside>
 <script>if ("serviceWorker" in navigator) addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {{}}));</script>
 <script>window.BRC_LOGO = "data:image/png;base64,{logo}";</script>

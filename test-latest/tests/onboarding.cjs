@@ -22,9 +22,12 @@ assert.equal(back.S.screen,'onboard'); assert.equal(back.S.step,0,'With no earli
 back.S.step=3; back.S.stack=[{screen:'home'}];
 vm.runInContext('actions.prev()', back);
 assert.equal(back.S.step,2);
-const replay = source.slice(source.indexOf('  replay() {'), source.indexOf('  talk(i) {'));
-const again = vm.createContext({ S: { member:true, screen:'me', step:5, stack:[{screen:'me'}], appTour:null }, render(){} });
-vm.runInContext('const actions = {' + replay + '}; actions.replay();', again);
-assert.equal(again.S.screen,'home'); assert.equal(again.S.member,false,'Replay shows the public welcome page, not the Member Home or the older welcome tour');
-assert.equal(again.S.stack.length,0);
-console.log('Onboarding completion opens Circles and preserves companion validation; back from step 1 returns to where setup began; replay opens the welcome page.');
+const reset = source.slice(source.indexOf('  erase() {'), source.indexOf('  cwTab('));
+const store = new Map([['key', JSON.stringify({member:true, history:['old'], friendMessages:{kevin:['private']}})]]);
+const resetCtx = vm.createContext({ S:{lang:'ht'}, PERSIST:true, SAVE_KEY:'key', localStorage:{setItem:(k,v)=>store.set(k,v)}, t:k=>k, confirm:()=>false, crypto:{randomUUID:()=>'next'}, location:{reload(){}} });
+vm.runInContext('const actions = {' + reset + '}; actions.erase();', resetCtx);
+assert.equal(JSON.parse(store.get('key')).member,true,'Cancel keeps the current profile');
+resetCtx.confirm=()=>true;
+vm.runInContext('actions.erase()',resetCtx);
+assert.deepEqual(JSON.parse(store.get('key')), {lang:'ht',generation:'next'}, 'A fresh tester keeps only the language and reset marker');
+console.log('Onboarding, companion validation, Back and confirmed tester reset passed.');

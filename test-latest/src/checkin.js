@@ -122,7 +122,7 @@ function activityRows() {
   const topic = S.daily.topics[0], focus = topic ? TOPIC_HELP[topic].focus : S.mainFocus;
   const c = CIRCLES.find(x => x.focus === focus);
   return `<button class="li" data-a="dailyBreathe">${icon("wind")}<span class="t"><b>${esc(t("d_breathe", { pet: S.petName }))}</b><small>${t("d_breathe_sub")}</small></span>${icon("chev")}</button>
-    ${c ? `<button class="li" data-a="circle" data-v="${c.id}">${icon("circles")}<span class="t"><b>${esc(c.name)}</b><small>${t("d_circle_sub")} · ${c.lang}</small></span>${icon("chev")}</button>` : ""}
+    ${c ? `<button class="li" data-a="circle" data-v="${c.id}">${icon("circles")}<span class="t"><b>${esc(L(c.name))}</b><small>${t("d_circle_sub")} · ${circleLanguage(c)}</small></span>${icon("chev")}</button>` : ""}
     <button class="li" data-a="go" data-v="ask">${icon("ask")}<span class="t"><b>${t("d_ask")}</b><small>${t("d_ask_sub")}</small></span>${icon("chev")}</button>`;
 }
 function dailyDone() {

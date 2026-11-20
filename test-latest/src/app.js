@@ -14,7 +14,7 @@ const S = {
   focuses: [], mainFocus: null, state: null, species: "otter", petName: "", companionChosen: false,
   seeds: 20, earnedToday: 0, persona: "anon", replyPersona: "anon", draft: "", draftFocus: "parenting",
   mood: null, tags: [], note: "", checkedIn: false, shareMood: false, showCircles: false, showFriends: false,
-  match: null, dm: [], dmDraft: "", joined: [], owned: [], wear: [], helpful: {}, translated: {}, seen: {},
+  match: null, dm: [], dmDraft: "", joined: [], owned: [], wear: [], helpful: {}, showOriginal: {}, seen: {},
   posts: POSTS.map(p => ({ ...p, replies: p.replies.map(r => ({ ...r })) })), thread: null, circle: null,
   crisis: null, toast: null, posted: false, replyDraft: "", breathing: false, petHinted: false, timeOverride: null, enter: null,
   realName: "", nameShow: "anon", history: [], streakGoal: 7, activityDay: null,
@@ -117,7 +117,9 @@ const hueFor = name => ["#3c6b4a", "#17616d", "#a8361f", "#6b4c00", "#5b4a8c"][[
 const wantsZh = () => (S.guideZh == null ? S.lang !== "en" : S.guideZh);
 /* Circle posts are for that Circle's members; anything the Member hid or reported stays hidden. */
 const canSee = p => !!p && !p.hiddenForMe && (!p.circle || p.mine || S.joined.includes(p.circle));
-const circleName = id => (CIRCLES.find(c => c.id === id) || {}).name || "";
+const circleName = id => L(CIRCLES.find(c => c.id === id)?.name);
+const circleLanguage = c => t(c.lang === "EN" ? "english_label" : "chinese_label");
+const guideLanguages = c => c.zh ? t("english_label") + " · " + t("mandarin_label") : t("english_label");
 /* A new Member starts in the Circle for their main Focus Area, in their language. */
 function suggestedCircles() {
   const fit = CIRCLES.filter(c => c.focus === S.mainFocus);
@@ -142,22 +144,35 @@ function earnOnce(kind, n) {
 const SAVE_KEY = "brc-crossings-v1";
 const SAVED = ["lang", "member", "age", "terms", "optMatch", "optJournal", "focuses", "mainFocus", "state", "species", "baseSpecies", "petName", "companionChosen",
   "seeds", "earnedToday", "bonusDay", "activityDay", "mood", "checkedIn", "daily", "dMedNote", "dLine", "checkinSafety", "phqSafety", "phqLast", "history", "streakGoal",
-  "joined", "owned", "wear", "helpful", "translated", "seen", "posts", "posted", "match", "dm", "realName", "nameShow", "savedPractices", "journalEntries",
+  "joined", "owned", "wear", "helpful", "seen", "posts", "posted", "match", "dm", "realName", "nameShow", "savedPractices", "journalEntries",
   "friendships", "friendMessages", "shareMood", "guideZh", "careVolume", "petHinted", "scene", "sceneAll", "sceneFx", "musicOn", "musicKind", "musicVol"];
 const PERSIST = !location.search;
+// A reset invalidates any other open tabs holding the previous tester’s data.
+let generation = null;
 function saveState() {
   if (!PERSIST) return;
-  try { const out = {}; SAVED.forEach(k => { out[k] = S[k]; }); localStorage.setItem(SAVE_KEY, JSON.stringify(out)); } catch (e) { /* private mode or full storage: carry on unsaved */ }
+  try {
+    const current = JSON.parse(localStorage.getItem(SAVE_KEY) || "null");
+    if ((current?.generation || null) !== generation) { location.reload(); return; }
+    const out = { generation };
+    SAVED.forEach(k => { out[k] = S[k]; });
+    localStorage.setItem(SAVE_KEY, JSON.stringify(out));
+  } catch (e) { /* private mode or full storage: carry on unsaved */ }
 }
 function loadState() {
   if (!PERSIST) return false;
   try {
     const saved = JSON.parse(localStorage.getItem(SAVE_KEY) || "null");
     if (!saved || typeof saved !== "object") return false;
+    generation = saved.generation || null;
+    if (!saved.member) { S.lang = saved.lang || "en"; return true; }
     SAVED.forEach(k => { if (k in saved && saved[k] !== undefined) S[k] = saved[k]; });
     return true;
   } catch (e) { return false; }
 }
+window.addEventListener("storage", event => {
+  if (PERSIST && event.key === SAVE_KEY && (JSON.parse(event.newValue || "null")?.generation || null) !== generation) location.reload();
+});
 function toast(msg, ic = "seed") { S.toast = { msg, ic, id: Date.now() }; }
 /* Home, Circles, Companion and Me are tab roots: going to one switches tabs instead of stacking a copy. */
 const TAB_ROOTS = ["home", "circles", "companion", "me"];
@@ -383,21 +398,21 @@ const BACK_LABEL = { settings: "settings", dailyDone: "daily_title", phqResult: 
 function backLabel() { const prev = S.stack[S.stack.length - 1]; const k = prev && BACK_LABEL[prev.screen]; return k ? t(k) : t("back"); }
 function tabs(active) {
   const tab = (id, ic, label) => `<button class="${active === id ? "on" : ""}" data-a="tab" data-v="${id}" ${active === id ? 'aria-current="page"' : ""}>${icon(ic)}<span>${label}</span></button>`;
-  return `<nav class="tabs" aria-label="Main">${tab("home", "home", t("home"))}${tab("circles", "circles", t("circles"))}
+  return `<nav class="tabs" aria-label="${t("main_navigation")}">${tab("home", "home", t("home"))}${tab("circles", "circles", t("circles"))}
     <button class="fab" data-a="go" data-v="ask"><span class="disc">${icon("ask")}</span><span>${t("ask")}</span></button>
     ${tab("companion", "paw", t("companion"))}${tab("me", "me", t("me"))}</nav>`;
 }
 function avatar(name, anon) {
   return anon ? `<span class="av anon">${icon("mask")}</span>` : `<span class="av" style="background:${hueFor(name)}">${esc(initials(name))}</span>`;
 }
-function textFor(obj, orig, tr) {
-  if (typeof obj === "string") return { text: obj, lang: orig === "zh" ? zhTag() : "en" };
-  if (orig === "zh") return S.lang === "en" ? (tr ? { text: obj.en, lang: "en" } : { text: obj.ht, lang: "zh-Hant" }) : { text: obj[S.lang], lang: zhTag() };
-  return S.lang !== "en" && tr ? { text: obj[S.lang], lang: zhTag() } : { text: obj.en, lang: "en" };
+function textFor(obj, orig, original = false) {
+  if (typeof obj === "string") return { text: obj, lang: orig === "zh" ? "zh" : "en" };
+  const language = original ? (orig === "zh" ? "ht" : "en") : S.lang;
+  return { text: obj[language], lang: { en: "en", ht: "zh-Hant", hs: "zh-Hans" }[language] };
 }
 function postPanel(p, o = {}) {
-  const canTr = !p.mine && (p.orig === "zh") === (S.lang === "en");
-  const tr = canTr && S.translated[p.id];
+  const canTr = !p.mine && [p, p.answer, ...p.replies].some(item => item && typeof item.text === "object" && (item.orig === "zh" ? S.lang !== "ht" : S.lang !== "en"));
+  const tr = canTr && S.showOriginal[p.id];
   const body = textFor(p.text, p.orig, tr);
   const lit = (p.unseenAnswer || p.mine) && !S.seen[p.id];
   const state = p.held ? `<span class="tag held">${t("held")}</span>`
@@ -411,18 +426,18 @@ function postPanel(p, o = {}) {
     <div class="post-head">${avatar(p.author, p.anon)}<div class="who"><b>${esc(p.anon ? t("anonymous") : p.author)}</b><span>${ago(p.ago)} · ${p.circle ? esc(circleName(p.circle)) : focusName(p.focus)}</span></div>${state}<button class="more-btn" data-a="postMenu" data-v="${p.id}" aria-label="${t("more_actions")}">${icon("more")}</button></div>
     ${!p.anon && !p.mine && p.memberId ? `<div class="friend-post">${friendButton(p.memberId)}</div>` : ""}
     <div class="post-body" ${o.full ? "" : `data-a="thread" data-v="${p.id}" style="cursor:pointer"`}><p lang="${body.lang}">${esc(body.text)}</p>
-      ${tr ? `<span class="tr-note">${icon("translate")}${t("machine_tr")}</span>` : ""}</div>
+      </div>
     ${ans && (o.full || o.preview) ? `<div class="answer"><div class="by">${icon("shield")}${esc(c.name)}<span>· ${t("counselor")}</span></div><p lang="${ans.lang}">${esc(o.full ? ans.text : ans.text.split(/(?<=[.。])\s*/)[0])}</p>${o.full ? `<span class="disc">${t("not_therapy")}</span>` : ""}</div>` : ""}
     <div class="post-foot">
       <button class="act ${helpfulOn ? "on" : ""}" data-a="helpful" data-v="${p.id}" aria-pressed="${!!helpfulOn}">${icon("heart")}${t("helpful")} · ${p.helpful + (helpfulOn ? 1 : 0)}</button>
       <button class="act" data-a="thread" data-v="${p.id}">${icon("chat")}${n === 1 ? t("reply_1") : t("replies_n", { n })}</button>
-      ${canTr ? `<button class="act" data-a="translate" data-v="${p.id}" style="margin-left:auto">${icon("translate")}${tr ? t("show_original") : t("translate")}</button>` : ""}
+      ${canTr ? `<button class="act" data-a="translate" data-v="${p.id}" style="margin-left:auto">${icon("translate")}${tr ? t("show_selected") : t("show_original")}</button>` : ""}
     </div></article>`;
 }
 const feedList = () => S.posts.map(p => postPanel(p, { preview: true })).join("");
 function guideCard() {
   const g = S.match ? counselor(S.match) : null;
-  const sub = g ? `${t("my_guide")} · ${g.langs}` : !licensedHere() ? t("oos_title") : S.optMatch ? t("guide_sub") : t("matching_off_title");
+  const sub = g ? `${t("my_guide")} · ${guideLanguages(g)}` : !licensedHere() ? t("oos_title") : S.optMatch ? t("guide_sub") : t("matching_off_title");
   return `<button class="guide" data-a="go" data-v="${g ? "dm" : "guide"}"><span class="av" style="${g ? `background:${g.hue}` : ""}">${g ? initials(g.name) : icon("shield")}</span>
     <span class="t"><b>${g ? esc(g.name) : t("find_guide")}</b><span>${sub}</span></span>${icon(g ? "chat" : "chev")}</button>`;
 }
@@ -655,6 +670,10 @@ function mountTour() {
   });
 }
 
+function speciesPicker() {
+  return `<div class="species" role="group" aria-label="${t("change_companion")}">${SPECIES.filter(s => !s.shopOnly || (S.member && S.owned.includes(s.id))).map(s => `<button class="${S.companionChosen && S.species === s.id ? "on" : ""}" data-a="species" data-v="${s.id}" aria-pressed="${S.companionChosen && S.species === s.id}">${thumb(s.id)}${L(s)}</button>`).join("")}</div>`;
+}
+
 function onboarding() {
   const st = S.step;
   if (st === 0) return `<div class="welcome">
@@ -672,7 +691,7 @@ function onboarding() {
     ok = S.age && S.terms;
     const chk = (k, label, req, sub = "") => `<label class="check"><input type="checkbox" data-a="flag" data-v="${k}" ${S[k] ? "checked" : ""}><span class="t"><b>${label}</b>${sub ? `<small>${sub}</small>` : ""}</span><span class="tag ${req ? "req" : ""}" style="${req ? "" : "background:var(--mist);color:var(--ink-2)"}">${req ? t("required") : t("optional")}</span></label>`;
     inner = `<h2>${t("age_title")}</h2><p class="lede">${t("age_body")}</p>
-      <div class="panel" style="margin:0;padding:2px 14px">${chk("age", t("age_18"), true)}${chk("terms", t("agree_terms"), true)}${chk("optMatch", t("optin_match"), false, t("optin_match_sub"))}${chk("optJournal", t("optin_journal"), false, t("optin_journal_sub"))}</div>`;
+      <div class="panel" style="margin:0;padding:2px 14px">${chk("age", t("age_18"), true)}${chk("terms", t("agree_terms"), true)}${chk("optMatch", t("optin_match"), false, t("optin_match_sub"))}${chk("optJournal", t("optin_journal"), false, t("optin_journal_sub"))}</div><details class="panel"><summary>${t("demo_notice")}</summary><p>${t("demo_notice_body")}</p></details>`;
   } else if (st === 2) {
     inner = `<h2>${t("name_title")}</h2><p class="lede">${t("name_sub")}</p>
       <label class="label" for="realName">${t("your_name")}</label>
@@ -693,7 +712,7 @@ function onboarding() {
     ok = S.companionChosen && S.petName.trim().length > 0;
     inner = `<h2>${t("companion_title")}</h2><p class="lede" style="margin-bottom:12px">${t("companion_sub")}</p>
       <section class="stage picker" data-stage="picker"></section>
-      <div class="species" role="group">${SPECIES.filter(s => !s.shopOnly).map(s => `<button class="${S.companionChosen && S.species === s.id ? "on" : ""}" data-a="species" data-v="${s.id}" aria-pressed="${S.companionChosen && S.species === s.id}">${thumb(s.id)}${L(s)}</button>`).join("")}</div>
+      ${speciesPicker()}
       <label class="label" for="petName">${t("name_it")}</label>
       <input class="field" id="petName" maxlength="16" value="${esc(S.petName)}" data-model="petName" autocomplete="off">`;
   }
@@ -720,7 +739,7 @@ function homeLanguages() {
   return `<div class="home-languages" role="group" aria-label="${t("language")}"><span class="home-language-label">${t("language")}</span>${[["en", "EN", "English"], ["ht", "繁", "繁體中文"], ["hs", "简", "简体中文"]].map(([id, label, name]) => `<button type="button" data-a="lang" data-v="${id}" aria-label="${name}" aria-pressed="${S.lang === id}">${label}</button>`).join("")}</div>`;
 }
 function homeHero() {
-  return `<section class="home-feature-hero" aria-label="${t("hero_label")}"><div class="home-brand"><img src="${window.BRC_LOGO}" alt="Bridge River Counseling logo" width="56" height="56"><div><b>BRC Crossings <span lang="zh-Hant">同渡</span></b><p>${t("welcome_sub")}</p></div></div>${homeLanguages()}<h1><span class="home-masked-title">${t("hero_title")}</span></h1>
+  return `<section class="home-feature-hero" aria-label="${t("hero_label")}"><div class="home-brand"><img src="${window.BRC_LOGO}" alt="${t("clinic_logo")}" width="56" height="56"><div><b>BRC Crossings <span lang="zh-Hant">同渡</span></b><p>${t("welcome_sub")}</p></div></div>${homeLanguages()}<h1><span class="home-masked-title">${t("hero_title")}</span></h1>
     <div class="orbit-container feature-orbit" data-draggable>
       <svg class="orbit-path-svg" data-orbit-svg aria-hidden="true"><path data-orbit-path data-orbit-stroke d="M 100 300 A 200 80 0 1 0 500 300 A 200 80 0 1 0 100 300" transform="rotate(-8 300 300)" fill="none" stroke="#cbd2c9" /></svg>
       ${HOME_FEATURES.map((f,i) => `<div class="orbit-item" data-orbit-item="${i}" data-clickable role="button" tabindex="0" aria-label="${t(f.title)}"><div class="orbit-item-inner"><span class="feature-photo${f.image ? ` feature-photo-${f.image}` : ""}" style="background-position:${f.position}" role="img" aria-label="${t(f.title)}"></span><span class="feature-label">${t(f.label)}</span></div></div>`).join("")}
@@ -839,7 +858,7 @@ function compose() {
   const me = displayName(), persona = me ? S.persona : "anon";
   const mine = CIRCLES.filter(c => S.joined.includes(c.id)), circle = mine.find(c => c.id === S.draftCircle);
   const where = mine.length ? `<span class="label">${t("post_where")}</span>
-    <div class="chips" style="margin-bottom:18px"><button class="chip ${circle ? "" : "on"}" data-a="draftCircle" data-v="" aria-pressed="${!circle}">${t("post_everyone")}</button>${mine.map(c => `<button class="chip ${circle === c ? "on" : ""}" data-a="draftCircle" data-v="${c.id}" aria-pressed="${circle === c}">${esc(c.name)}</button>`).join("")}</div>` : "";
+    <div class="chips" style="margin-bottom:18px"><button class="chip ${circle ? "" : "on"}" data-a="draftCircle" data-v="" aria-pressed="${!circle}">${t("post_everyone")}</button>${mine.map(c => `<button class="chip ${circle === c ? "on" : ""}" data-a="draftCircle" data-v="${c.id}" aria-pressed="${circle === c}">${esc(L(c.name))}</button>`).join("")}</div>` : "";
   const topic = circle ? "" : `<span class="label">${t("focus_area")}</span>
     <div class="chips" style="margin-bottom:18px">${FOCUS.map(f => `<button class="chip ${S.draftFocus === f.id ? "on" : ""}" data-a="draftFocus" data-v="${f.id}" aria-pressed="${S.draftFocus === f.id}">${L(f)}</button>`).join("")}</div>`;
   return `${hdrSub(t("ask_title"))}<div class="scroll pad">${where}${topic}
@@ -854,7 +873,7 @@ function compose() {
 }
 function thread() {
   const p = S.posts.find(x => x.id === S.thread) || S.posts[0];
-  const tr = S.translated[p.id];
+  const tr = S.showOriginal[p.id];
   const visible = p.replies.map((r, i) => ({ r, i })).filter(({ r }) => !r.hiddenForMe && (!r.held || r.mine));
   const me = displayName(), who = S.replyPersona === "anon" || !me ? t("anonymous") : me;
   return `${hdrSub(focusName(p.focus))}<div class="scroll"><div style="height:6px"></div>${postPanel(p, { full: true })}
@@ -876,7 +895,7 @@ function findHelpList(level = "crisis") {
 function guide() {
   if (S.appTour !== null && S.screen === "guide") {
     const c = COUNSELORS[0];
-    return `${hdrSub(t("my_guide"))}<div class="scroll"><p class="pad muted">${t("app_tour_guide_sample")}</p><article class="panel cc tour-guide-sample"><div class="cc-top"><span class="av" style="background:${c.hue};width:48px;height:48px">${initials(c.name)}</span><div><div class="nm">${esc(c.name)}</div><div class="meta">${esc(c.langs)}</div></div></div><p>${esc(L(c.bio))}</p><span class="tag">${t("app_tour_sample_label")}</span></article></div>`;
+    return `${hdrSub(t("my_guide"))}<div class="scroll"><p class="pad muted">${t("app_tour_guide_sample")}</p><article class="panel cc tour-guide-sample"><div class="cc-top"><span class="av" style="background:${c.hue};width:48px;height:48px">${initials(c.name)}</span><div><div class="nm">${esc(c.name)}</div><div class="meta">${guideLanguages(c)}</div></div></div><p>${esc(L(c.bio))}</p><span class="tag">${t("app_tour_sample_label")}</span></article></div>`;
   }
   if (!licensedHere()) {
     return `${hdrSub(t("my_guide"))}<div class="scroll"><div style="height:14px"></div><div class="notice"><h3>${t("oos_title")}</h3><p>${t("oos_body")}</p></div>
@@ -891,7 +910,7 @@ function guide() {
   return `${hdrSub(t("my_guide"))}<div class="scroll"><p class="pad" style="margin:0;color:var(--ink-2)">${t("guide_intro")}</p>
     <div class="pad" style="padding-top:0"><button class="chip ${wantsZh() ? "on" : ""}" data-a="guideZh" aria-pressed="${wantsZh()}">${wantsZh() ? icon("check") : ""}${t("guide_zh")}</button></div>
     ${cur ? guideCard() : ""}
-    ${list.length ? list.map(c => `<article class="panel cc"><div class="cc-top"><span class="av" style="background:${c.hue};width:48px;height:48px">${initials(c.name)}</span><div><div class="nm">${esc(c.name)}</div><div class="meta">${c.langs} · ${t("licensed_in", { s: c.states.join(", ") })}</div></div></div>
+    ${list.length ? list.map(c => `<article class="panel cc"><div class="cc-top"><span class="av" style="background:${c.hue};width:48px;height:48px">${initials(c.name)}</span><div><div class="nm">${esc(c.name)}</div><div class="meta">${guideLanguages(c)} · ${t("licensed_in", { s: c.states.join(", ") })}</div></div></div>
       <p>${L(c.bio)}</p>${c.approaches && c.approaches.length ? `<p class="approaches">${t("guide_approaches")}: ${c.approaches.map(id => `<span class="kind-chip kind-${id}">${L(supportKind(id))}</span>`).join("")}</p>` : ""}${S.match === c.id ? `<span class="tag answer">${icon("check")}${t("my_guide")}</span>` : `<button class="btn quiet block" data-a="match" data-v="${c.id}">${t("choose_guide")}</button>`}</article>`).join("")
       : `<div class="notice"><h3>${t("all_full_title")}</h3><p>${t("all_full_body")}</p><button class="btn primary" data-a="toast" data-v="waitlisted">${t("waitlist")}</button></div>`}
     <div style="height:12px"></div></div>`;
@@ -900,12 +919,9 @@ function dm() {
   const c = counselor(S.match);
   if (!c) return guide();
   const mood = S.shareMood && S.checkedIn ? MOODS.find(x => x.id === S.mood) : null;
-  const msgs = S.dm.map(m => m.type === "book"
-    ? `<div class="bookcard"><div class="top">${icon("calendar")}${t("book_title")} · ${esc(c.name.split(",")[0])}</div><p>${t("book_note")}</p>
-       <a class="btn primary block" href="https://www.bridgerivercounseling.com/services" target="_blank" rel="noopener" data-a="booked">${t("book_cta")}${icon("external")}</a></div>`
-    : `<div class="bubble ${m.me ? "me" : "them"}">${m.me ? "" : `<span class="from">${esc(c.name)}</span>`}${esc(m.key ? t(m.key, { me: callName(), c: c.name.split(",")[0] }) : m.text)}</div>`).join("");
-  return `${hdrSub(esc(c.name))}<div class="dm-banner">${icon("shield")}<span>${t("dm_banner")}</span></div>${mood ? `<div class="dm-mood">${moodFace(mood, 22)}<span>${t("dm_mood_shared", { mood: L(mood) })}</span></div>` : ""}
-    <div class="scroll" id="dmScroll"><div style="height:12px"></div>${msgs}<div style="height:8px"></div></div>
+  const msgs = S.dm.filter(m => m.type !== "book").map(m => `<div class="bubble ${m.me ? "me" : "them"}">${m.me ? "" : `<span class="from">${t("sample_reply")} · ${esc(c.name)}</span>`}${esc(m.key ? t(m.key, { me: callName(), c: c.name.split(",")[0] }) : m.text)}</div>`).join("");
+  return `${hdrSub(esc(c.name))}<div class="dm-banner">${icon("shield")}<span>${t("dm_banner")} ${t(PERSIST ? "chat_storage" : "temporary_storage")}</span></div>${mood ? `<div class="dm-mood">${moodFace(mood, 22)}<span>${t("dm_mood_shared", { mood: L(mood) })}</span></div>` : ""}
+    <div class="scroll" id="dmScroll"><div style="height:12px"></div>${msgs}<div class="list">${clinicRow()}</div><div style="height:8px"></div></div>
     <div class="composer"><input placeholder="${t("message_ph", { name: esc(c.name.split(" ")[0]) })}" data-model="dmDraft" value="${esc(S.dmDraft)}" aria-label="${t("message")}"><button class="btn primary" data-a="sendDm" aria-label="${t("send")}">${icon("send")}</button></div>`;
 }
 /* ---------- post-check-in care ---------- */
@@ -962,6 +978,7 @@ function companionScreen() {
       ${S.breathing ? "" : talkBox("companion")}
       ${checkin}
       ${S.checkedIn ? carePanel() : ""}
+      <div class="pad"><h2>${t("change_companion")}</h2>${speciesPicker()}</div>
       ${scenePicker()}
       ${activityLink()}
       <h2 class="section-h">${t("badges")}</h2>
@@ -987,8 +1004,8 @@ function shopScreen() {
 }
 function circleList() {
   return `<div class="list">${CIRCLES.map(c => { const j = S.joined.includes(c.id);
-    return `<div class="li"><button class="t" style="border:0;background:none;text-align:left;padding:0;min-height:44px" data-a="circle" data-v="${c.id}"><b>${esc(c.name)}</b><small>${focusName(c.focus)} · ${t("members_n", { n: c.members })}</small></button>
-      <span class="lang-pill">${c.lang}</span><button class="btn ${j ? "quiet" : "primary"} sm" data-a="join" data-v="${c.id}" aria-pressed="${j}">${j ? t("joined") : t("join")}</button></div>`; }).join("")}</div>`;
+    return `<div class="li"><button class="t" style="border:0;background:none;text-align:left;padding:0;min-height:44px" data-a="circle" data-v="${c.id}"><b>${esc(L(c.name))}</b><small>${focusName(c.focus)} · ${t("members_n", { n: c.members })}</small></button>
+      <span class="lang-pill">${circleLanguage(c)}</span><button class="btn ${j ? "quiet" : "primary"} sm" data-a="join" data-v="${c.id}" aria-pressed="${j}">${j ? t("joined") : t("join")}</button></div>`; }).join("")}</div>`;
 }
 function circlesScreen() {
   const top = isRoot();
@@ -998,7 +1015,7 @@ function circleScreen() {
   const c = CIRCLES.find(x => x.id === S.circle) || CIRCLES[0];
   const posts = S.posts.filter(p => p.circle === c.id && !p.hiddenForMe);
   const joined = S.joined.includes(c.id);
-  return `${hdrSub(esc(c.name))}<div class="scroll"><p class="pad muted" style="margin:0;display:flex;gap:8px">${icon("lock")}<span>${t("members_n", { n: c.members })} · ${c.lang} · ${focusName(c.focus)}</span></p>
+  return `${hdrSub(esc(L(c.name)))}<div class="scroll"><p class="pad muted" style="margin:0;display:flex;gap:8px">${icon("lock")}<span>${t("members_n", { n: c.members })} · ${circleLanguage(c)} · ${focusName(c.focus)}</span></p>
     ${joined ? `<div class="pad" style="padding-top:0"><button class="btn primary block" data-a="composeIn" data-v="${c.id}">${icon("ask")}${t("post_in_circle")}</button></div>
         ${posts.length ? posts.map(p => postPanel(p, { preview: true })).join("") : `<div class="notice"><p>${t("circle_first")}</p></div>`}`
       : `<div class="notice"><h3>${t("join_to_see")}</h3><p>${t("members_only")}</p><button class="btn primary" data-a="join" data-v="${c.id}">${t("join")}</button></div>`}</div>`;
@@ -1067,38 +1084,40 @@ function friendsScreen() {
 /* Counselor preview is isolated from member journals, messages and identity data. */
 const CW = {
   tab: 'inbox', selected: null, drafts: {}, replies: {}, resolved: {}, flags: {},
-  accepting: true, away: false, response: 'Within 2 business days',
-  bio: 'Supporting parents, bicultural families, and adults navigating stress.',
+  accepting: true, away: false, response: 'day2',
+  bio: null,
   topic: '', language: '',
 };
 const CW_MEMBERS = [
-  { id: 'm1', name: 'L.Z.', topic: 'Parenting', language: 'English', question: 'How can I make room for a calmer conversation with my child?', mood: 'Not shared' },
-  { id: 'm2', name: 'A.M.', topic: 'Stress', language: 'English', question: 'I would like some ideas for setting boundaries at work.', mood: 'Good · shared for this sample only' },
+  { id: 'm1', name: 'L.Z.', topic: 'parenting', language: 'en', mood: 'unshared' },
+  { id: 'm2', name: 'A.M.', topic: 'stress', language: 'en', mood: 'shared_good' },
 ];
 const CW_QUESTIONS = [
-  { id: 'q1', name: 'Anonymous', topic: 'Parenting', language: 'English', question: 'What is a helpful way to start a conversation when homework becomes an argument?' },
-  { id: 'q2', name: 'Anonymous', topic: 'Stress', language: '中文', question: '最近工作很忙，想知道怎麼安排休息時間。' },
-  { id: 'q3', name: 'Kevin W.', topic: 'Relationships', language: 'English', question: 'How can we listen to each other without turning a disagreement into another argument?' },
+  { id: 'q1', name: 'Anonymous', topic: 'parenting', language: 'en' },
+  { id: 'q2', name: 'Anonymous', topic: 'stress', language: 'zh' },
+  { id: 'q3', name: 'Kevin W.', topic: 'relationships', language: 'en' },
 ];
 function counselorWorkspace() {
   const all = [...CW_MEMBERS, ...CW_QUESTIONS], selected = all.find(x => x.id === CW.selected);
-  const status = x => CW.resolved[x.id] ? 'Resolved' : CW.replies[x.id]?.length ? 'Replied' : 'Needs reply';
-  const card = x => `<button class="panel cw-card" data-a="cwOpen" data-v="${x.id}"><span class="cw-meta">${esc(x.topic)} · ${esc(x.language)} · ${status(x)}</span><b>${esc(x.name)}</b><p>${esc(x.question)}</p><span class="cw-link">Open question ${icon('chev')}</span></button>`;
+  const label = key => t("cw_" + key);
+  const name = x => x.name === "Anonymous" ? t("anonymous") : esc(x.name);
+  const status = x => label(CW.resolved[x.id] ? "resolved" : CW.replies[x.id]?.length ? "replied" : "needs_reply");
+  const card = x => `<button class="panel cw-card" data-a="cwOpen" data-v="${x.id}"><span class="cw-meta">${label(x.topic)} · ${label(x.language)} · ${status(x)}</span><b>${name(x)}</b><p>${label(x.id)}</p><span class="cw-link">${label("open")} ${icon('chev')}</span></button>`;
   let body = '';
   if (selected) {
     const publicQuestion = CW_QUESTIONS.includes(selected);
-    body = `<button class="btn quiet" data-a="cwClose">${icon('back')} Back to ${publicQuestion ? 'community' : 'inbox'}</button><section class="panel cw-panel"><span class="cw-meta">${publicQuestion ? 'Community question · response visible to the community' : 'One-to-one guidance · assigned member'}</span><h2>${esc(selected.name)}</h2><p>${esc(selected.question)}</p>${selected.name === 'Anonymous' ? '<p class="cw-note">Author identity is hidden. No identity lookup is available.</p>' : ''}${(CW.replies[selected.id] || []).map(text => `<div class="cw-reply"><b>You · demo reply</b><p>${esc(text)}</p></div>`).join('')}<label class="label" for="cw-reply">${publicQuestion ? 'Community response' : 'Reply to member'}</label><textarea class="field" id="cw-reply" rows="5" data-cw-draft>${esc(CW.drafts[selected.id] || '')}</textarea><p class="muted">General guidance only. This preview does not send messages or provide therapy.</p><button class="btn primary" data-a="cwReply" ${(CW.drafts[selected.id] || '').trim() ? '' : 'disabled'}>Save demo reply</button><div class="cw-actions"><button class="btn quiet" data-a="cwResolve">${CW.resolved[selected.id] ? 'Reopen question' : 'Mark resolved'}</button><button class="btn quiet" data-a="cwFlag">${CW.flags[selected.id] ? 'Undo demo flag' : 'Flag for clinic review'}</button></div>${CW.flags[selected.id] ? '<p role="status" class="cw-note">Flag recorded in this preview only. No clinic staff have been notified.</p>' : ''}</section>`;
+    body = `<button class="btn quiet" data-a="cwClose">${icon('back')} ${label(publicQuestion ? "back_community" : "back_inbox")}</button><section class="panel cw-panel"><span class="cw-meta">${publicQuestion ? label("public") : label("private")}</span><h2>${name(selected)}</h2><p>${label(selected.id)}</p>${selected.name === 'Anonymous' ? `<p class="cw-note">${label("anon_note")}</p>` : ''}${(CW.replies[selected.id] || []).map(text => `<div class="cw-reply"><b>${label("your_reply")}</b><p>${esc(text)}</p></div>`).join('')}<label class="label" for="cw-reply">${publicQuestion ? label("public_reply") : label("member_reply")}</label><textarea class="field" id="cw-reply" rows="5" data-cw-draft>${esc(CW.drafts[selected.id] || '')}</textarea><p class="muted">${label("guidance")}</p><button class="btn primary" data-a="cwReply" ${(CW.drafts[selected.id] || '').trim() ? '' : 'disabled'}>${label("save_reply")}</button><div class="cw-actions"><button class="btn quiet" data-a="cwResolve">${CW.resolved[selected.id] ? label("reopen") : label("resolve")}</button><button class="btn quiet" data-a="cwFlag">${CW.flags[selected.id] ? label("undo_flag") : label("flag")}</button></div>${CW.flags[selected.id] ? `<p role="status" class="cw-note">${label("flag_note")}</p>` : ''}</section>`;
   } else if (CW.tab === 'inbox') {
-    body = `<h1>Your questions</h1><p class="cw-note">${CW.away ? "Away from the workspace" : "Available"} · ${CW.accepting ? "Accepting new members" : "Not accepting new members"}<br>Expected response: ${esc(CW.response)}</p><p class="muted">Assigned members · ${CW_MEMBERS.filter(x => !CW.resolved[x.id]).length} open conversations</p>${CW_MEMBERS.map(card).join('')}`;
+    body = `<h1>${label("your_questions")}</h1><p class="cw-note">${CW.away ? label("away") : label("available")} · ${CW.accepting ? label("accepting") : label("closed")}<br>${label("expected")}: ${label(CW.response)}</p><p class="muted">${t("cw_assigned", { n: CW_MEMBERS.filter(x => !CW.resolved[x.id]).length })}</p>${CW_MEMBERS.map(card).join('')}`;
   } else if (CW.tab === 'community') {
     const rows = CW_QUESTIONS.filter(x => (!CW.topic || x.topic === CW.topic) && (!CW.language || x.language === CW.language));
-    body = `<h1>Community questions</h1><p class="muted">Offer general guidance. Anonymous authors stay anonymous.</p><div class="cw-filters"><label>Topic<select class="field" data-cw-filter="topic">${['','Parenting','Stress','Relationships'].map(v => `<option value="${v}" ${CW.topic === v ? 'selected' : ''}>${v || 'All topics'}</option>`).join('')}</select></label><label>Language<select class="field" data-cw-filter="language">${['','English','中文'].map(v => `<option value="${v}" ${CW.language === v ? 'selected' : ''}>${v || 'All languages'}</option>`).join('')}</select></label></div>${rows.length ? rows.map(card).join('') : '<p class="notice">No questions match these filters.</p>'}`;
+    body = `<h1>${label("questions")}</h1><p class="muted">${label("question_note")}</p><div class="cw-filters"><label>${label("topic")}<select class="field" data-cw-filter="topic">${['','parenting','stress','relationships'].map(v => `<option value="${v}" ${CW.topic === v ? 'selected' : ''}>${label(v || 'all_topics')}</option>`).join('')}</select></label><label>${t("language")}<select class="field" data-cw-filter="language">${['','en','zh'].map(v => `<option value="${v}" ${CW.language === v ? 'selected' : ''}>${label(v || 'all_languages')}</option>`).join('')}</select></label></div>${rows.length ? rows.map(card).join('') : `<p class="notice">${label("no_questions")}</p>`}`;
   } else if (CW.tab === 'members') {
-    body = `<h1>My members</h1><p class="cw-note">Private journals are never available here. Mood visibility requires the member’s permission.</p>${CW_MEMBERS.map(m => `<section class="panel cw-panel"><h2>${esc(m.name)}</h2><p>${esc(m.topic)} · ${esc(m.language)}</p><p><b>Mood:</b> ${esc(m.mood)}</p><button class="btn quiet" data-a="cwOpen" data-v="${m.id}">Open conversation</button></section>`).join('')}`;
+    body = `<h1>${label("my_members")}</h1><p class="cw-note">${label("journal_note")}</p>${CW_MEMBERS.map(m => `<section class="panel cw-panel"><h2>${name(m)}</h2><p>${label(m.topic)} · ${label(m.language)}</p><p><b>${label("mood")}:</b> ${label(m.mood)}</p><button class="btn quiet" data-a="cwOpen" data-v="${m.id}">${label("conversation")}</button></section>`).join('')}`;
   } else {
-    body = `<h1>Profile & availability</h1><section class="panel cw-panel"><h2>Mei Lin, LPC</h2><span class="tag">Fictional counselor · sample approval</span><p>English · 普通话<br>Sample license states: Texas, Washington<br>Specialties: parenting, stress, bicultural families</p><p class="muted">Credentials and license states require clinic verification. They cannot be self-approved.</p></section><form id="cw-profile" class="panel cw-panel"><label class="label" for="cw-bio">Profile introduction</label><textarea class="field" id="cw-bio" name="bio" rows="3" maxlength="400">${esc(CW.bio)}</textarea><label class="label" for="cw-response">Expected response time</label><select class="field" id="cw-response" name="response">${['Within 1 business day','Within 2 business days','Within 3 business days'].map(v => `<option ${CW.response === v ? 'selected' : ''}>${v}</option>`).join('')}</select><label class="check"><input type="checkbox" name="accepting" ${CW.accepting ? 'checked' : ''}> Accepting new members</label><label class="check"><input type="checkbox" name="away" ${CW.away ? 'checked' : ''}> Away from the workspace</label><button class="btn primary block" type="submit">Save demo settings</button></form><section class="panel cw-panel"><h2>Clinic onboarding</h2><ol><li>Receive a clinic invitation.</li><li>Submit credentials, license states, languages and specialties.</li><li>Clinic verifies credentials and approves access.</li><li>Set availability, response expectations and clinic booking link.</li></ol><p class="muted">This preview simulates an approved account. Production authentication and clinic approval are not implemented.</p></section>`;
+    body = `<h1>${label("availability")}</h1><section class="panel cw-panel"><h2>Mei Lin, LPC</h2><span class="tag">${label("fictional")}</span><p>${t("english_label")} · ${t("mandarin_label")}<br>${label("states")}<br>${label("specialties")}</p><p class="muted">${label("credentials")}</p></section><form id="cw-profile" class="panel cw-panel"><label class="label" for="cw-bio">${label("intro")}</label><textarea class="field" id="cw-bio" name="bio" rows="3" maxlength="400">${esc(CW.bio ?? label('bio'))}</textarea><label class="label" for="cw-response">${label("expected_time")}</label><select class="field" id="cw-response" name="response">${['day1','day2','day3'].map(v => `<option value="${v}" ${CW.response === v ? 'selected' : ''}>${label(v)}</option>`).join('')}</select><label class="check"><input type="checkbox" name="accepting" ${CW.accepting ? 'checked' : ''}> ${label("accepting")}</label><label class="check"><input type="checkbox" name="away" ${CW.away ? 'checked' : ''}> ${label("away")}</label><button class="btn primary block" type="submit">${label("save_settings")}</button></form><section class="panel cw-panel"><h2>${label("onboard")}</h2><ol><li>${label("invite")}</li><li>${label("submit")}</li><li>${label("verify")}</li><li>${label("set")}</li></ol><p class="muted">${label("simulated")}</p></section>`;
   }
-  return `<header class="hdr"><div class="hdr-row"><button class="btn quiet" data-a="go" data-v="me">${icon('back')} Member view</button><b>Counselor</b></div></header><div class="scroll cw-workspace" lang="en"><div class="cw-banner"><b>COUNSELOR WORKSPACE · PREVIEW</b><p>Fictional sample data. Replies, flags and settings stay in this session and clear on refresh.</p></div><div class="cw-nav" role="group" aria-label="Counselor sections">${[['inbox','Inbox'],['community','Community'],['members','Members'],['profile','Profile']].map(([id,label]) => `<button class="chip ${CW.tab === id ? 'on' : ''}" data-a="cwTab" data-v="${id}" aria-pressed="${CW.tab === id}">${label}</button>`).join('')}</div><div class="cw-body">${body}</div></div>`;
+  return `<header class="hdr"><div class="hdr-row"><button class="btn quiet" data-a="go" data-v="me">${icon('back')} ${label("member_view")}</button><b>${t("counselor")}</b></div></header><div class="scroll cw-workspace"><div class="cw-banner"><b>${label("banner")}</b><p>${label("notice")}</p></div><div class="cw-nav" role="group" aria-label="${label("sections")}">${['inbox','community','members','profile'].map(id => `<button class="chip ${CW.tab === id ? 'on' : ''}" data-a="cwTab" data-v="${id}" aria-pressed="${CW.tab === id}">${label(id)}</button>`).join('')}</div><div class="cw-body">${body}</div></div>`;
 }
 
 function meScreen() {
@@ -1125,10 +1144,9 @@ function meScreen() {
       <span class="label" style="margin-top:16px">${t("show_as")}</span>${nameChoice()}
     </div>
     <div class="panel" style="padding:2px 14px">${sw("optMatch", t("counselor_matching"))}${sw("shareMood", t("share_mood"))}${sw("optJournal", t("optin_journal"))}</div>
-    <div class="pad"><button class="btn quiet block" data-a="go" data-v="counselor">Preview counselor workspace</button></div>
-    <div class="pad"><button class="btn quiet block" data-a="replay">${t("replay")}</button></div>
+    <div class="pad"><button class="btn quiet block" data-a="go" data-v="counselor">${t("cw_preview")}</button></div>
     ${installCard()}
-    <div class="pad"><p class="muted" style="display:flex;gap:8px">${icon("lock")}<span>${t("saved_here")}</span></p><button class="btn ghost block" data-a="erase">${t("erase")}</button></div></div>`;
+    <div class="pad"><p class="muted" style="display:flex;gap:8px">${icon("lock")}<span>${t("saved_here")}</span></p><button class="btn ghost block" data-a="erase">${t("start_fresh")}</button></div></div>`;
 }
 /* Help is stepped to the level of need. The Help pill asks first; Pebble's "talk to someone"
    opens "reach"; risky words, safety answers and held posts open the crisis lines.
@@ -1197,7 +1215,7 @@ function appTourPanel() {
   const index = S.appTour, step = APP_TOUR[index];
   return `<div class="app-tour-overlay"><div class="app-tour-spotlight" aria-hidden="true"></div><section class="app-tour-card" role="dialog" aria-modal="true" aria-labelledby="app-tour-title" aria-describedby="app-tour-body">
     <div class="app-tour-top"><span>${t("app_tour_demo")}</span><span>${t("app_tour_step", {n:index + 1, total:APP_TOUR.length})}</span></div>
-    ${index === 0 ? homeLanguages() : ""}<h2 id="app-tour-title">${t(step[1])}</h2><p id="app-tour-body">${t(step[2])}</p>
+    ${index === 0 ? homeLanguages() : ""}<h2 id="app-tour-title">${t(step[1])}</h2><p id="app-tour-body">${t(step[2])}${["friends", "activity"].includes(step[0]) ? " " + t(PERSIST ? "tour_storage" : "temporary_storage") : ""}</p>
     <div class="app-tour-actions"><button class="app-tour-exit" data-a="appTourExit">${t("app_tour_skip")}</button>${index ? `<button class="btn quiet" data-a="appTourMove" data-v="-1">${t("app_tour_previous")}</button>` : ""}<button class="btn primary" data-a="appTourMove" data-v="1" data-autofocus>${t(index === APP_TOUR.length - 1 ? "app_tour_finish" : "app_tour_next")}</button></div>
   </section></div>`;
 }
@@ -1288,32 +1306,48 @@ function render(nav = false) {
 
 /* Prototype notes beside the phone (desktop only) */
 const SCREEN_NOTES = {
-  counselor: ["Isolated fictional counselor workspace; no access to member journals or anonymous identities.", "All replies, flags and profile settings are session-only simulations."],
-  onboard: ["Help is reachable from the first screen.", "Optional consents start unticked; age and terms are required.", "Location has no default, because it gates Counselor services.", "The Companion is a live 3D model; tap the species to switch."],
-  feed: ["Signed-in Home: new for you (a fresh Counselor answer, your own posts), posts from friends, friends' named replies, then your Circles and the rest of the community. Each post shows once.", "Anonymous posts and replies never show who wrote them. Friends' Helpful taps are not shown: Members have not agreed to share them.", "The sample account starts with Kevin W. as a friend; a new sign-up starts with none."],
-  home: ["Adult-facing feature hero with generated illustrative photos; these are not real members or counselors.", "OrbitImages adapted from React Bits (Dominik Koch); pause, swipe and keyboard controls.", "Companion scene is reserved for its own page and setup."],
-  compose: ["Named or Anonymous for this post only.", "Risk screening matches whole phrases in English and Chinese; risky posts are held and crisis help shows immediately.", "Try “I don't want to live” to see the hold."],
-  thread: ["Replies choose their own identity, defaulting to Anonymous.", "Replies are risk-screened like posts.", "Translate works both ways and is labelled."],
-  guide: ["Suggestions need the matching consent, and are filtered by licensed state.", "Out-of-state Members get a referral list instead."],
-  dm: ["Risky messages show crisis help instead of a booking card.", "The booking card links to the clinic website; DMs are never sent to clinic records."],
-  companion: ["Pick a mood and the Companion stirs; check in to wake it with that mood's weather.", "On hard days it comforts you and offers a breathing exercise.", "Shop items appear on the 3D Companion."],
-  shop: ["RiverSeeds buy accessories, seasonal items and a new species; some items are badge-only.", "Seeds can't be bought or cashed out, and there are no leaderboards."],
-  circles: ["Clinic-curated Circles, one language each.", "Posts are visible to members only."],
-  circle: ["Members-only posts. Stewards and Counselor drop-ins arrive in Phase 2."],
-  learn: ["Searchable sample practices in English and Chinese. Session-only saves; content has not been counselor-reviewed."],
-  me: ["Language, location and every privacy control in one place.", "Circles and the Friends list are hidden from Friends by default."],
+  counselor: ["note_counselor_1", "note_counselor_2"],
+  onboard: ["note_onboard_1", "note_onboard_2", "note_onboard_3", "note_onboard_4"],
+  feed: ["note_feed_1", "note_feed_2", "note_feed_3"],
+  home: ["note_home_1", "note_home_2", "note_home_3"],
+  compose: ["note_compose_1", "note_compose_2", "note_compose_3"],
+  thread: ["note_thread_1", "note_thread_2", "note_thread_3"],
+  guide: ["note_guide_1", "note_guide_2"],
+  dm: ["note_dm_1", "note_dm_2"],
+  companion: ["note_companion_1", "note_companion_2", "note_companion_3"],
+  shop: ["note_shop_1", "note_shop_2"],
+  circles: ["note_circles_1", "note_circles_2"],
+  circle: ["note_circle_1"],
+  learn: ["note_learn_1"],
+  me: ["note_me_1", "note_me_2"],
 };
 function renderNotes() {
   const n = $("#screenName"); if (!n) return;
   const key = S.screen === "onboard" ? "onboard" : S.screen === "home" && S.member ? "feed" : S.screen;
-  n.textContent = S.screen === "onboard" ? (S.step ? `Onboarding · step ${S.step} of 5` : "Welcome") : key[0].toUpperCase() + key.slice(1);
-  $("#screenNotes").innerHTML = (SCREEN_NOTES[key] || SCREEN_NOTES.home).map(x => `<li>${esc(x)}</li>`).join("");
-  $("#times").innerHTML = [[null, "Live"], [7, "Morning"], [13, "Day"], [18.6, "Dusk"], [22, "Night"], [23.6, "Late night"]].map(([h, l]) => `<button data-time="${h ?? ""}" class="${S.timeOverride === h ? "on" : ""}">${l}</button>`).join("")
-    + `<button data-away class="${S.away ? "on" : ""}">A day away</button>`;
-  if (S.screen === "counselor") { $("#stateDump").textContent = JSON.stringify({screen:"counselor", preview:true, section:CW.tab, accepting:CW.accepting, away:CW.away}, null, 2); return; }
-  $("#stateDump").textContent = JSON.stringify({ screen: S.screen, lang: S.lang, location: S.state, counselorServices: licensedHere() ? "available" : "gated", matchingConsent: S.optMatch,
-    focusAreas: S.focuses, mainFocus: S.mainFocus, riverSeeds: S.seeds, earnedToday: `${S.earnedToday}/25 cap`, checkedIn: S.checkedIn, mood: S.mood, companion: `${S.petName} (${S.species})`, wearing: S.wear,
-    guide: S.match ? counselor(S.match).name : null, heldItems: S.posts.filter(p => p.held).length + S.posts.reduce((a, p) => a + p.replies.filter(r => r.held).length, 0) }, null, 2);
+  const screenLabels = {"feed": "home", "compose": "ask_title", "thread": "ask", "guide": "my_guide", "dm": "my_guide", "circle": "circles", "learn": "practice_library", "practice": "practice_library", "daily": "daily_title", "dailyDone": "daily_title", "activity": "activity", "phqResult": "result_title", "phqIntro": "mood_check", "phq": "mood_check", "counselor": "cw_preview", "friendDm": "friends_title", "friends": "friends_title"};
+  n.textContent = key === "onboard" ? (S.step ? t("setup_step", { n: S.step }) : t("welcome_label")) : t(screenLabels[key] || key);
+  document.title = t("notes_title");
+  $(".notes").setAttribute("aria-label", t("notes_label"));
+  document.querySelectorAll(".notes [data-copy]").forEach(el => { el.textContent = t(el.dataset.copy); });
+  $("#screenNotes").innerHTML = (SCREEN_NOTES[key] || SCREEN_NOTES.home).map(id => `<li>${esc(t(id))}</li>`).join("");
+  $("#times").innerHTML = [[null,"live"], [7,"morning"], [13,"day"], [18.6,"dusk"], [22,"night"], [23.6,"late"]].map(([h, period]) => `<button data-time="${h ?? ""}" class="${S.timeOverride === h ? "on" : ""}">${t("time_" + period)}</button>`).join("")
+    + `<button data-away class="${S.away ? "on" : ""}">${t("time_away")}</button>`;
+  const yesNo = value => t(value ? "d_yes" : "d_no");
+  const info = S.screen === "counselor" ? [
+    ["state_screen", n.textContent], ["state_section", t("cw_" + CW.tab)],
+    ["cw_accepting", yesNo(CW.accepting)], ["cw_away", yesNo(CW.away)]
+  ] : [
+    ["state_screen", n.textContent], ["language", { en: "English", ht: "繁體中文", hs: "简体中文" }[S.lang]],
+    ["location", stateName(S.state)], ["state_services", t(licensedHere() ? "cw_available" : "state_unavailable")],
+    ["counselor_matching", yesNo(S.optMatch)], ["focus_area", S.focuses.map(focusName).join(", ")],
+    ["state_main", S.mainFocus && focusName(S.mainFocus)], ["state_seeds", S.seeds], ["state_earned", S.earnedToday + "/25"],
+    ["state_checked", yesNo(S.checkedIn)], ["cw_mood", L(MOODS.find(m => m.id === S.mood))],
+    ["companion", [S.petName, L(species(S.species))].filter(Boolean).join(" · ")],
+    ["state_worn", S.wear.map(id => L(SHOP.find(it => it.id === id))).join(", ")],
+    ["my_guide", S.match && counselor(S.match)?.name],
+    ["state_held", S.posts.reduce((count, p) => count + Number(!!p.held) + p.replies.filter(r => r.held).length, 0)]
+  ];
+  $("#stateDump").textContent = info.map(([key, value]) => t(key) + " · " + (value === 0 ? 0 : value || "—")).join("\n");
 }
 
 /* ---------- actions ---------- */
@@ -1359,9 +1393,14 @@ const actions = {
   practiceDone() { const got = earnOnce("practice", 3); if (got) toast(t("seeds_earned", { n: got })); back(); },
   install() { if (!installEvent) return; installEvent.prompt(); installEvent.userChoice.finally(() => { installEvent = null; render(); }); },
   erase() {
-    if (!confirm(t("erase_confirm"))) return;
-    try { localStorage.removeItem(SAVE_KEY); } catch (e) { /* nothing saved */ }
-    location.reload();
+    if (!confirm(t(PERSIST ? "reset_confirm" : "preview_reset"))) return;
+    if (PERSIST) {
+      try {
+        localStorage.setItem(SAVE_KEY, JSON.stringify({ lang: S.lang, generation: crypto.randomUUID() }));
+      } catch { toast(t("reset_failed")); render(); return; }
+    }
+    if (PERSIST) location.reload();
+    else location.replace(location.pathname + "?lang=" + S.lang);
   },
   cwTab(tab) { CW.tab = tab; CW.selected = null; render(true); },
   cwOpen(id) { CW.selected = id; CW.tab = CW_QUESTIONS.some(x => x.id === id) ? 'community' : 'inbox'; render(true); },
@@ -1418,7 +1457,7 @@ const actions = {
   prev() { if (S.step <= 1 && S.stack.length) { back(); return; } S.step = Math.max(0, S.step - 1); render(true); },
   getStarted() { Object.assign(S, { step: 1, age: false, terms: false, optMatch: false, optJournal: false, realName: "", nameShow: "anon", focuses: [], mainFocus: null, state: null, species: "otter", petName: "", companionChosen: false, match: null, joined: [] }); go("onboard"); },
   signin() { Object.assign(S, { member: true, joined: S.joined.length ? S.joined : ["c1"], friendships: { kevin: "friend", ...S.friendships }, realName: "Lily Zhang", nameShow: "initials", companionChosen: true, petName: "Pebble", age: true, terms: true, optMatch: true, focuses: ["parenting"], mainFocus: "parenting", state: "TX", screen: "circles", stack: [] }); toast(t("sign_in_na"), "me"); render(true); },
-  lang(v) { S.lang = v; render(); },
+  lang(v) { S.lang = v; S.toast = null; S.practiceLanguage = ""; S.showOriginal = {}; render(); },
   flag(v, el) { S[v] = el.checked; render(); },
   flagOn(v) { S[v] = true; render(); },
   focus(v) {
@@ -1428,7 +1467,16 @@ const actions = {
   },
   mainFocus(v) { S.mainFocus = v; S.draftFocus = v; render(); },
   state(v) { S.state = v; if (S.match && !counselor(S.match).states.includes(v)) { S.match = null; toast(t("guide_unmatched"), "pin"); } render(); },
-  species(v) { if (S.companionChosen && S.species === v) return; S.species = v; S.companionChosen = true; render(); if (world) world.emote("wave"); if (S.screen !== "onboard") quip("species", { species: L(species(v)) }); },
+  species(v) {
+    if (!SPECIES.some(s => s.id === v && (!s.shopOnly || S.owned.includes(v)))) return;
+    if (S.companionChosen && S.species === v) return;
+    if (v === "fox") S.baseSpecies = S.species;
+    S.species = v;
+    S.companionChosen = true;
+    render();
+    if (world) world.emote("wave");
+    if (S.screen !== "onboard") quip("species", { species: L(species(v)) });
+  },
   tab(v) { S.stack = []; S.screen = v; S.breathing = false; render(true); },
   go(v) { go(v); },
   back() { back(); },
@@ -1438,7 +1486,7 @@ const actions = {
   helpGo(v) { S.crisis = null; if (v === "breathe") { startBreathe(); return; } go(v === "guide" ? (S.match ? "dm" : "guide") : v); },
   thread(v) { S.seen[v] = true; S.replyPersona = "anon"; go("thread", { thread: v }); },
   circle(v) { go("circle", { circle: v }); },
-  translate(v) { S.translated[v] = !S.translated[v]; render(); },
+  translate(v) { S.showOriginal[v] = !S.showOriginal[v]; render(); },
   helpful(v) { const p = S.posts.find(x => x.id === v); if (p && p.mine) return; S.helpful[v] = !S.helpful[v]; render(); },
   join(v) { S.joined = S.joined.includes(v) ? S.joined.filter(x => x !== v) : [...S.joined, v]; render(); },
   persona(v) { S.persona = v; render(); },
@@ -1472,8 +1520,7 @@ const actions = {
     const text = (S.dmDraft || "").trim(); if (!text) return;
     S.dm.push({ me: true, text }); S.dmDraft = "";
     if (isRisky(text)) { S.crisis = "dm"; render(); return; }
-    render();
-    if (!S.dm.some(m => m.type === "book")) setTimeout(() => { S.dm.push({ me: false, key: "dm_suggest" }, { type: "book" }); if (S.screen === "dm") render(); }, 1100);
+    S.dm.push({ me: false, key: "dm_suggest" }); render();
   },
   booked() { toast(t("opened_site"), "external"); setTimeout(render, 50); },
   breathe() {
@@ -1499,8 +1546,6 @@ const actions = {
     render(); if (world) world.anim.pop = world.time;
   },
   toast(v) { toast(t(v), v === "waitlisted" ? "check" : "learn"); render(); },
-  // Replay starts where a new visitor starts today: the public welcome page, signed out of the sample.
-  replay() { Object.assign(S, { member: false, screen: "home", step: 0, tour: 0, stack: [], appTour: null, saidHi: false, companionChosen: false, petName: "" }); render(true); },
   talk(i) {
     const n = TALK[S.talk.shown] && TALK[S.talk.shown]();
     const o = n && n.opts && n.opts[+i];
@@ -1561,7 +1606,7 @@ document.addEventListener("input", e => {
   if (k === "petName") { const b = document.querySelector('[data-a="next"]'); if (b) b.disabled = !S.companionChosen || !el.value.trim(); }
 });
 document.addEventListener("submit", e => {
-  if (e.target.id === "cw-profile") { e.preventDefault(); const data = new FormData(e.target); Object.assign(CW, {bio:String(data.get('bio')).trim(), response:data.get('response'), accepting:data.has('accepting'), away:data.has('away')}); toast('Demo settings saved for this session', 'check'); render(); return; }
+  if (e.target.id === "cw-profile") { e.preventDefault(); const data = new FormData(e.target); Object.assign(CW, {bio: CW.bio === null && data.get('bio') === t('cw_bio') ? null : String(data.get('bio')).trim(), response:data.get('response'), accepting:data.has('accepting'), away:data.has('away')}); toast(t('cw_saved'), 'check'); render(); return; }
  if (e.target.id === "friend-message-form") { e.preventDefault(); const risky = isRisky(S.friendDrafts[S.friendRecipient] || ""); sendFriendMessage(); if (risky) { S.crisis = "crisis"; render(); } } });
 document.addEventListener("keydown", e => {
   if (e.key === "Enter" && e.target.dataset && ["dmDraft", "replyDraft"].includes(e.target.dataset.model)) { e.preventDefault(); actions[e.target.dataset.model === "dmDraft" ? "sendDm" : "reply"](); return; }
@@ -1594,13 +1639,13 @@ if (loadState()) {
 /* Deep links for reviewing screens: ?skip=1, ?screen=…, ?lang=ht, ?step=2, ?loc=INTL, ?checkedin=1, ?mood=sad, ?match=k1, ?sheet=held, ?thread=p1, ?draft=…, ?time=22 */
 if (params.get("skip") === "1" || params.get("screen")) Object.assign(S, { member: true, joined: ["c1"], friendships: { kevin: "friend" }, realName: "Lily Zhang", nameShow: "initials", companionChosen: true, petName: "Pebble", screen: "home", age: true, terms: true, optMatch: true, focuses: ["parenting"], mainFocus: "parenting", state: "TX" });
 if (params.get("screen")) { S.screen = params.get("screen"); if (!["home", "circles", "companion", "me"].includes(S.screen)) S.stack = [{ screen: "home" }]; }
-if (params.get("lang")) S.lang = params.get("lang");
+if (["en", "ht", "hs"].includes(params.get("lang"))) S.lang = params.get("lang");
 if (params.get("step")) { S.step = +params.get("step"); if (S.step >= 2) Object.assign(S, { age: true, terms: true }); }
 if (params.get("loc")) S.state = params.get("loc");
 if (params.get("checkedin") === "1") { S.checkedIn = true; S.mood = params.get("mood") || "good"; S.tags = ["Work"]; recordMood(S.mood); }
 if (params.get("species")) S.species = params.get("species");
 if (params.get("wear")) { S.wear = params.get("wear").split(","); S.owned = [...S.wear]; }
-if (params.get("match")) { S.match = params.get("match"); S.dm = [{ me: false, key: "dm_hello" }, { me: true, text: "My son and I fight every night about homework. I'm exhausted." }, { me: false, key: "dm_suggest" }, { type: "book" }]; }
+if (params.get("match")) { S.match = params.get("match"); S.dm = [{ me: false, key: "dm_hello" }, { me: true, key: "dm_sample_question" }, { me: false, key: "dm_suggest" }]; }
 if (params.get("sheet")) S.crisis = params.get("sheet");
 if (params.get("thread")) S.thread = params.get("thread");
 if (params.get("draft")) S.draft = params.get("draft");
